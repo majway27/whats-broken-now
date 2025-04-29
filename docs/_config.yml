@@ -1,0 +1,7 @@
+title: What's Broken Now - Hardware Catalog
+description: Official hardware catalog for the "What's Broken Now" game
+theme: jekyll-theme-minimal
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+  - jekyll-readme-index 
