@@ -1,2 +1,3 @@
 llm
-llm-gpt4all 
+llm-gpt4all
+rich

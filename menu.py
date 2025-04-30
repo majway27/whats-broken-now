@@ -12,75 +12,10 @@ client = llm.get_model("mistral-7b-instruct-v0")
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 TICKETS_DB_PATH = os.path.join(MODULE_DIR, 'tickets', 'tickets.db')
 
-# Database setup
-def init_db():
-    # Initialize tickets database
-    conn = sqlite3.connect('tickets.db')
-    c = conn.cursor()
-    
-    # Create tickets table
-    c.execute('''CREATE TABLE IF NOT EXISTS tickets
-                 (id TEXT PRIMARY KEY,
-                  title TEXT,
-                  status TEXT,
-                  description TEXT,
-                  hardware_name TEXT,
-                  hardware_model TEXT,
-                  hardware_manufacturer TEXT,
-                  created_at TIMESTAMP)''')
-    
-    conn.commit()
-    conn.close()
 
 def get_hardware_db():
     """Get a connection to the hardware catalog database."""
     return sqlite3.connect('hardware/hardware_catalog.db')
-
-def get_active_tickets():
-    conn = sqlite3.connect(TICKETS_DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer FROM tickets")
-    tickets = [{
-        "id": row[0],
-        "title": row[1],
-        "status": row[2],
-        "description": row[3],
-        "hardware": {
-            "name": row[4],
-            "model": row[5],
-            "manufacturer": row[6]
-        }
-    } for row in c.fetchall()]
-    conn.close()
-    return tickets
-
-def add_ticket(ticket):
-    conn = sqlite3.connect(TICKETS_DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO tickets (id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-              (ticket['id'],
-               ticket['title'],
-               ticket['status'],
-               ticket['description'],
-               ticket['hardware']['name'],
-               ticket['hardware']['model'],
-               ticket['hardware']['manufacturer'],
-               datetime.now()))
-    conn.commit()
-    conn.close()
-
-def print_status_pane():
-    """Print the status pane showing active tickets."""
-    print("\n=== Active Tickets ===")
-    tickets = get_active_tickets()
-    if not tickets:
-        print("No active tickets")
-    else:
-        for ticket in tickets:
-            print(f"\n{ticket['id']}: {ticket['title']} ({ticket['status']})")
-            #print(f"Hardware: {ticket['hardware']['name']} by {ticket['hardware']['manufacturer']}")
-            #print(f"Description: {ticket['description'][:100]}...")
-    print("\n=====================")
 
 def print_menu():
     """Print the main menu options."""
@@ -90,94 +25,14 @@ def print_menu():
     print("3. Administrator")
     print("4. Logout for the day and go home")
     print("===============")
-    print_status_pane()
-
-def generate_reporter_comment(hardware_item):
-    """Generate an entertaining reporter comment with a misunderstanding about the hardware."""
-    # Get hardware specs from database
-    conn = get_hardware_db()
-    c = conn.cursor()
-    
-    c.execute("""
-        SELECT spec_name, spec_value
-        FROM hardware_specs hs
-        JOIN hardware_items hi ON hs.hardware_id = hi.id
-        WHERE hi.name = ? AND hi.manufacturer = ? AND hi.model = ?
-    """, (hardware_item['name'], hardware_item['manufacturer'], hardware_item['model']))
-    
-    specs = dict(c.fetchall())
-    conn.close()
-    
-    prompt = f"""Create a short, entertaining report about a malfunctioning {hardware_item['name']} ({hardware_item['model']}).
-    The reporter should misunderstand one of the technical specifications or features of the device.
-    Include a brief history of how they acquired the device and their experience with it.
-    Make it humorous but realistic.
-    Keep it under 200 words."""
-    
-    try:
-        response = client.prompt(prompt)
-        return response.text()
-    except Exception as e:
-        return f"Error generating comment: {str(e)}"
+    views.print_status_pane()
 
 def check_new_tickets():
     print("\nChecking for new tickets...")
     
-    # 50% chance to generate a new ticket
-    if random.random() < 0.5:
-        # Get a random hardware item from the database
-        conn = get_hardware_db()
-        c = conn.cursor()
-        
-        # Get total count of hardware items
-        c.execute("SELECT COUNT(*) FROM hardware_items")
-        total_items = c.fetchone()[0]
-        
-        if total_items > 0:
-            # Select a random hardware item
-            random_offset = random.randint(0, total_items - 1)
-            c.execute("""
-                SELECT hi.id, hi.name, hi.manufacturer, hi.model, hc.name as category
-                FROM hardware_items hi
-                JOIN hardware_categories hc ON hi.category_id = hc.id
-                LIMIT 1 OFFSET ?
-            """, (random_offset,))
-            hardware_item = c.fetchone()
-            
-            if hardware_item:
-                # Get a random failure for this hardware item
-                c.execute("""
-                    SELECT failure_description
-                    FROM hardware_failures
-                    WHERE hardware_id = ?
-                """, (hardware_item[0],))
-                failures = c.fetchall()
-                
-                if failures:
-                    failure = random.choice(failures)[0]
-                    
-                    # Generate a reporter comment
-                    comment = utils.generate_reporter_comment({
-                        'name': hardware_item[1],
-                        'manufacturer': hardware_item[2],
-                        'model': hardware_item[3]
-                    })
-                    
-                    new_ticket = {
-                        "id": f"TICKET-{random.randint(1000, 9999)}",
-                        "title": f"{hardware_item[1]} ({hardware_item[3]}) - {failure}",
-                        "status": "New",
-                        "description": comment,
-                        "hardware": {
-                            "name": hardware_item[1],
-                            "model": hardware_item[3],
-                            "manufacturer": hardware_item[2]
-                        }
-                    }
-                    models.add_ticket(new_ticket)
-                    print(f"New ticket found: {new_ticket['id']}")
-                    print(f"\nReporter Comment:\n{comment}")
-        conn.close()
+    new_ticket = models.check_new_tickets()
+    if new_ticket:
+        print(f"New ticket found: {new_ticket['id']}")
     else:
         print("No new tickets found.")
     
@@ -217,7 +72,7 @@ def work_new_ticket():
 def show_ticket_interaction(ticket):
     """Show the ticket interaction screen for the selected ticket."""
     while True:
-        clear_screen()
+        views.clear_screen()
         print(f"\n=== Working on Ticket: {ticket['id']} ===")
         print(f"Title: {ticket['title']}")
         print(f"Status: {ticket['status']}")
@@ -238,7 +93,7 @@ def show_ticket_interaction(ticket):
         if choice == '1':
             update_ticket_status(ticket)
         elif choice == '2':
-            add_ticket_comment(ticket)
+            models.add_ticket_comment(ticket)
         elif choice == '3':
             return
         else:
@@ -268,12 +123,7 @@ def update_ticket_status(ticket):
             return
         elif choice in status_map:
             new_status = status_map[choice]
-            conn = sqlite3.connect(TICKETS_DB_PATH)
-            c = conn.cursor()
-            c.execute("UPDATE tickets SET status = ? WHERE id = ?", 
-                     (new_status, ticket['id']))
-            conn.commit()
-            conn.close()
+            models.update_ticket_status(ticket['id'], new_status)
             ticket['status'] = new_status
             print(f"\nTicket status updated to: {new_status}")
             input("Press Enter to continue...")
@@ -281,16 +131,6 @@ def update_ticket_status(ticket):
         else:
             print("Invalid choice. Please try again.")
 
-def add_ticket_comment(ticket):
-    """Add a comment to a ticket."""
-    print("\n=== Add Comment to Ticket ===")
-    comment = input("Enter your comment: ")
-    if comment.strip():
-        # In a real implementation, you would store the comment in a database
-        print("\nComment added successfully!")
-    else:
-        print("\nComment cannot be empty.")
-    input("Press Enter to continue...")
 
 def administrator_options():
     """Administrator menu for system management."""
@@ -322,17 +162,9 @@ def view_system_statistics():
     views.clear_screen()
     print("\n=== System Statistics ===")
     
-    # Get ticket statistics
-    conn = sqlite3.connect(TICKETS_DB_PATH)
-    c = conn.cursor()
-    
-    # Count tickets by status
-    c.execute("SELECT status, COUNT(*) FROM tickets GROUP BY status")
-    status_counts = dict(c.fetchall())
-    
-    # Total tickets
-    c.execute("SELECT COUNT(*) FROM tickets")
-    total_tickets = c.fetchone()[0]
+    # Get ticket statistics using model functions
+    total_tickets = models.get_ticket_count()
+    status_counts = models.get_tickets_by_status()
     
     # Get hardware catalog statistics
     hw_conn = get_hardware_db()
@@ -355,7 +187,6 @@ def view_system_statistics():
     print(f"  Total Hardware Items: {total_hardware}")
     print(f"  Total Categories: {total_categories}")
     
-    conn.close()
     hw_conn.close()
     
     input("\nPress Enter to continue...")
@@ -557,10 +388,6 @@ def view_all_tickets():
     
     conn.close()
     input("\nPress Enter to continue...")
-
-def clear_screen():
-    """Clear the terminal screen."""
-    os.system('cls' if os.name == 'nt' else 'clear')
 
 def generate_snarky_goodbye():
     """Generate a snarky goodbye message from a coworker."""
