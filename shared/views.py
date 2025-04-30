@@ -1,25 +1,21 @@
-import os
+from .rich_ui import print_menu, print_status, print_info, print_error, clear_screen
 from tickets import models as ticket_models, views as ticket_views
 from hardware import models as hardware_models
 
-def clear_screen():
-    """Clear the terminal screen."""
-    os.system('cls' if os.name == 'nt' else 'clear')
-
-def print_menu():
+def show_main_menu():
     """Print the main menu options."""
-    print("\n=== Main Menu ===")
-    print("1. Check for new tickets")
-    print("2. Work new ticket")
-    print("3. Administrator")
-    print("4. Logout for the day and go home")
-    print("===============")
+    menu_options = [
+        "1. Check for new tickets",
+        "2. Work new ticket",
+        "3. Administrator",
+        "4. Logout for the day and go home"
+    ]
+    print_menu("Main Menu", menu_options)
     ticket_views.print_status_pane()
 
 def view_system_statistics():
     """Display system statistics."""
     clear_screen()
-    print("\n=== System Statistics ===")
     
     # Get ticket statistics using model functions
     total_tickets = ticket_models.get_ticket_count()
@@ -28,13 +24,17 @@ def view_system_statistics():
     # Get hardware catalog statistics
     hardware_stats = hardware_models.get_hardware_statistics()
     
-    print(f"\nTickets:")
-    print(f"  Total Tickets: {total_tickets}")
+    # Format ticket statistics
+    ticket_info = f"Total Tickets: {total_tickets}\n"
     for status, count in status_counts.items():
-        print(f"  {status}: {count}")
+        ticket_info += f"{status}: {count}\n"
     
-    print(f"\nHardware Catalog:")
-    print(f"  Total Hardware Items: {hardware_stats['total_hardware']}")
-    print(f"  Total Categories: {hardware_stats['total_categories']}")
+    # Format hardware statistics
+    hardware_info = f"Total Hardware Items: {hardware_stats['total_hardware']}\n"
+    hardware_info += f"Total Categories: {hardware_stats['total_categories']}"
+    
+    # Print statistics in panels
+    print_info("Tickets", ticket_info)
+    print_info("Hardware Catalog", hardware_info)
     
     input("\nPress Enter to continue...")

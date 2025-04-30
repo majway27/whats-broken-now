@@ -31,7 +31,7 @@ def get_active_tickets():
     """Get all active tickets from the database."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer FROM tickets")
+    c.execute("SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer FROM tickets WHERE status != 'Resolved'")
     tickets = [{
         "id": row[0],
         "title": row[1],

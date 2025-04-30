@@ -1,6 +1,6 @@
-import os
 from . import models
 from shared import views as shared_views
+from shared.rich_ui import print_menu, print_status, print_info, print_error, print_table, clear_screen
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -8,33 +8,38 @@ def clear_screen():
 
 def print_status_pane():
     """Print the status pane showing active tickets."""
-    print("\n=== Active Tickets ===")
     tickets = models.get_active_tickets()
     if not tickets:
-        print("No active tickets")
+        print_status("Active Tickets", "No active tickets")
     else:
+        rows = []
         for ticket in tickets:
-            print(f"\n{ticket['id']}: {ticket['title']} ({ticket['status']})")
-    print("\n=====================")
+            rows.append([f"{ticket['id']}: {ticket['title']} ({ticket['status']})"])
+        print_table("Active Tickets", ["Ticket Details"], rows)
 
 def show_ticket_interaction(ticket):
     """Show the ticket interaction screen for the selected ticket."""
     while True:
         clear_screen()
-        print(f"\n=== Working on Ticket: {ticket['id']} ===")
-        print(f"Title: {ticket['title']}")
-        print(f"Status: {ticket['status']}")
-        print(f"\nHardware Details:")
-        print(f"  Name: {ticket['hardware']['name']}")
-        print(f"  Model: {ticket['hardware']['model']}")
-        print(f"  Manufacturer: {ticket['hardware']['manufacturer']}")
-        print(f"\nReporter Comment:")
-        print(f"{ticket['description']}")
-        print("\nOptions:")
-        print("1. Update ticket status")
-        print("2. Add comment")
-        print("3. Return to ticket selection")
-        print("===============================")
+        
+        # Display ticket information
+        ticket_info = f"Title: {ticket['title']}\n"
+        ticket_info += f"Status: {ticket['status']}\n\n"
+        ticket_info += f"Hardware Details:\n"
+        ticket_info += f"  Name: {ticket['hardware']['name']}\n"
+        ticket_info += f"  Model: {ticket['hardware']['model']}\n"
+        ticket_info += f"  Manufacturer: {ticket['hardware']['manufacturer']}\n\n"
+        ticket_info += f"Reporter Comment:\n{ticket['description']}"
+        
+        print_info(f"Working on Ticket: {ticket['id']}", ticket_info)
+        
+        # Display options
+        options = [
+            "1. Update ticket status",
+            "2. Add comment",
+            "3. Return to ticket selection"
+        ]
+        print_menu("Options", options)
 
         choice = input("\nEnter your choice (1-3): ")
         
@@ -45,18 +50,19 @@ def show_ticket_interaction(ticket):
         elif choice == '3':
             return
         else:
-            print("Invalid choice. Please try again.")
+            print_error("Invalid choice. Please try again.")
             input("Press Enter to continue...")
 
 def update_ticket_status(ticket):
     """Update the status of a ticket."""
-    print("\n=== Update Ticket Status ===")
-    print("1. New")
-    print("2. In Progress")
-    print("3. On Hold")
-    print("4. Resolved")
-    print("5. Cancel")
-    print("=========================")
+    status_options = [
+        "1. New",
+        "2. In Progress",
+        "3. On Hold",
+        "4. Resolved",
+        "5. Cancel"
+    ]
+    print_menu("Update Ticket Status", status_options)
 
     status_map = {
         '1': 'New',
@@ -73,11 +79,11 @@ def update_ticket_status(ticket):
             new_status = status_map[choice]
             models.update_ticket_status(ticket['id'], new_status)
             ticket['status'] = new_status
-            print(f"\nTicket status updated to: {new_status}")
+            print_info("Status Updated", f"Ticket status updated to: {new_status}")
             input("Press Enter to continue...")
             return
         else:
-            print("Invalid choice. Please try again.")
+            print_error("Invalid choice. Please try again.")
 
 def add_ticket_comment(ticket):
     """Add a comment to a ticket."""
@@ -93,32 +99,35 @@ def add_ticket_comment(ticket):
 def view_all_tickets():
     """View all tickets in the system."""
     clear_screen()
-    print("\n=== All Tickets ===")
     
     tickets = models.get_all_tickets()
     if not tickets:
-        print("\nNo tickets found in the system.")
+        print_info("All Tickets", "No tickets found in the system.")
     else:
+        headers = ["ID", "Title", "Status", "Hardware", "Created", "Description"]
+        rows = []
         for ticket in tickets:
-            print(f"\nTicket ID: {ticket[0]}")
-            print(f"Title: {ticket[1]}")
-            print(f"Status: {ticket[2]}")
-            print(f"Hardware: {ticket[4]} ({ticket[5]}) by {ticket[6]}")
-            print(f"Created: {ticket[7]}")
-            print(f"Description: {ticket[3]}")
-            print("-" * 50)
+            rows.append([
+                str(ticket[0]),
+                ticket[1],
+                ticket[2],
+                f"{ticket[4]} ({ticket[5]}) by {ticket[6]}",
+                ticket[7],
+                ticket[3]
+            ])
+        print_table("All Tickets", headers, rows)
     
     input("\nPress Enter to continue...")
 
 def check_new_tickets():
     """Check for new tickets and display the result."""
-    print("\nChecking for new tickets...")
+    print_status("Checking Tickets", "Checking for new tickets...")
     
     new_ticket = models.check_new_tickets()
     if new_ticket:
-        print(f"New ticket found: {new_ticket['id']}")
+        print_info("New Ticket Found", f"New ticket found: {new_ticket['id']}")
     else:
-        print("No new tickets found.")
+        print_info("No New Tickets", "No new tickets found.")
     
     input("Press Enter to continue...")
 

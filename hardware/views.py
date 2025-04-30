@@ -1,6 +1,6 @@
-import os
 from . import models
 from shared import views as shared_views
+from shared.rich_ui import print_info, print_error, print_table, clear_screen, print_menu
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -30,46 +30,47 @@ def show_hardware_details(hardware_id):
     item = next((i for i in items if i['id'] == hardware_id), None)
     
     if not item:
-        print("Hardware item not found.")
+        print_error("Hardware item not found.")
         return
     
     clear_screen()
-    print(f"\n=== {item['name']} Details ===")
-    print(f"Manufacturer: {item['manufacturer']}")
-    print(f"Model: {item['model']}")
-    print(f"Release Date: {item['release_date']}")
-    print(f"Repair Difficulty: {item['repair_difficulty']}/5")
+    
+    # Format basic information
+    basic_info = f"Manufacturer: {item['manufacturer']}\n"
+    basic_info += f"Model: {item['model']}\n"
+    basic_info += f"Release Date: {item['release_date']}\n"
+    basic_info += f"Repair Difficulty: {item['repair_difficulty']}/5\n"
     if item['operating_system']:
-        print(f"Operating System: {item['operating_system']}")
+        basic_info += f"Operating System: {item['operating_system']}"
+    
+    print_info(f"{item['name']} Details", basic_info)
     
     # Print specifications
     specs = models.get_hardware_specs(hardware_id)
-    print("\nSpecifications:")
-    for spec_name, spec_value in specs.items():
-        print(f"  {spec_name}: {spec_value}")
+    if specs:
+        spec_rows = [[name, value] for name, value in specs.items()]
+        print_table("Specifications", ["Name", "Value"], spec_rows)
     
     # Print common failures
     failures = models.get_hardware_failures(hardware_id)
-    print("\nCommon Failures:")
-    for i, failure in enumerate(failures, 1):
-        print(f"  {i}. {failure}")
+    if failures:
+        failure_rows = [[str(i), failure] for i, failure in enumerate(failures, 1)]
+        print_table("Common Failures", ["#", "Description"], failure_rows)
     
     # Print troubleshooting procedures
     procedures = models.get_troubleshooting_procedures(hardware_id)
-    print("\nTroubleshooting Procedures:")
-    for procedure in procedures:
-        print(f"\n  {procedure['name']}:")
-        for step in procedure['steps']:
-            print(f"    {step['number']}. {step['description']}")
+    if procedures:
+        for procedure in procedures:
+            steps = "\n".join(f"{step['number']}. {step['description']}" for step in procedure['steps'])
+            print_info(procedure['name'], steps)
     
     # Print special tools
     tools = models.get_special_tools(hardware_id)
-    print("\nSpecial Tools Required:")
-    for i, tool in enumerate(tools, 1):
-        print(f"  {i}. {tool}")
+    if tools:
+        tool_rows = [[str(i), tool] for i, tool in enumerate(tools, 1)]
+        print_table("Special Tools Required", ["#", "Tool"], tool_rows)
     
-    print("\nPress Enter to continue...")
-    input()
+    input("\nPress Enter to continue...")
 
 def main_menu():
     """Show the main hardware catalog menu."""
@@ -195,7 +196,6 @@ def view_all_hardware():
 def add_hardware_item():
     """Display the UI for adding a new hardware item to the catalog."""
     clear_screen()
-    print("\n=== Add New Hardware Item ===")
     
     # Get hardware categories
     conn = models.get_hardware_db()
@@ -205,13 +205,13 @@ def add_hardware_item():
     conn.close()
     
     if not categories:
-        print("No categories found. Please create categories first.")
+        print_error("No categories found. Please create categories first.")
         input("Press Enter to continue...")
         return False
     
-    print("\nAvailable Categories:")
-    for cat_id, cat_name in categories:
-        print(f"{cat_id}. {cat_name}")
+    # Display categories
+    category_rows = [[str(cat_id), cat_name] for cat_id, cat_name in categories]
+    print_table("Available Categories", ["ID", "Name"], category_rows)
     
     try:
         category_id = int(input("\nSelect category ID: "))
@@ -222,12 +222,12 @@ def add_hardware_item():
         success, error = models.add_hardware_item(category_id, name, manufacturer, model)
         
         if success:
-            print("\nHardware item added successfully!")
+            print_info("Success", "Hardware item added successfully!")
         else:
-            print(f"\nError adding hardware item: {error}")
+            print_error(f"Error adding hardware item: {error}")
         return success
     except ValueError:
-        print("Invalid category ID. Please enter a number.")
+        print_error("Invalid category ID. Please enter a number.")
         return False
     finally:
         input("Press Enter to continue...")
@@ -235,7 +235,6 @@ def add_hardware_item():
 def update_hardware_item():
     """Display the UI for updating an existing hardware item."""
     clear_screen()
-    print("\n=== Update Hardware Item ===")
     
     # Get all hardware items
     conn = models.get_hardware_db()
@@ -249,13 +248,13 @@ def update_hardware_item():
     conn.close()
     
     if not items:
-        print("No hardware items found in the catalog.")
+        print_error("No hardware items found in the catalog.")
         input("Press Enter to continue...")
         return
     
-    print("\nAvailable Hardware Items:")
-    for item in items:
-        print(f"{item[0]}. {item[1]} ({item[2]} {item[3]})")
+    # Display hardware items
+    item_rows = [[str(item[0]), f"{item[1]} ({item[2]} {item[3]})"] for item in items]
+    print_table("Available Hardware Items", ["ID", "Details"], item_rows)
     
     try:
         item_id = int(input("\nSelect item ID to update: "))
@@ -275,13 +274,13 @@ def update_hardware_item():
         
         if success:
             if error == "No changes made":
-                print("\nNo changes made.")
+                print_info("Update", "No changes made.")
             else:
-                print("\nHardware item updated successfully!")
+                print_info("Success", "Hardware item updated successfully!")
         else:
-            print(f"\nError updating hardware item: {error}")
+            print_error(f"Error updating hardware item: {error}")
     except ValueError:
-        print("Invalid item ID. Please enter a number.")
+        print_error("Invalid item ID. Please enter a number.")
     finally:
         input("Press Enter to continue...")
 

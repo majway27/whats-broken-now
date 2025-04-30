@@ -1,18 +1,21 @@
 from tickets import views as ticket_views
 from hardware import views as hardware_views
 from shared import views as shared_views
+from shared.rich_ui import print_menu, print_error, clear_screen
 
 
 def administrator_options():
     """Administrator menu for system management."""
     while True:
-        shared_views.clear_screen()
-        print("\n=== Administrator Menu ===")
-        print("1. View System Statistics")
-        print("2. Manage Hardware Catalog")
-        print("3. View All Tickets")
-        print("4. Return to Main Menu")
-        print("========================")
+        clear_screen()
+        
+        menu_options = [
+            "1. View System Statistics",
+            "2. Manage Hardware Catalog",
+            "3. View All Tickets",
+            "4. Return to Main Menu"
+        ]
+        print_menu("Administrator Menu", menu_options)
         
         choice = input("\nEnter your choice (1-4): ")
         
@@ -25,5 +28,5 @@ def administrator_options():
         elif choice == '4':
             return
         else:
-            print("Invalid choice. Please try again.")
+            print_error("Invalid choice. Please try again.")
             input("Press Enter to continue...")

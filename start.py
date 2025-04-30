@@ -8,7 +8,7 @@ def main():
     hardware_models.init_db()  # Initialize hardware catalog database
     hardware_utils.migrate_hardware_catalog()  # Populate hardware catalog database
     while True:
-        shared_views.print_menu()
+        shared_views.show_main_menu()
         try:
             choice = input("\nEnter your choice (1-4): ")
             
