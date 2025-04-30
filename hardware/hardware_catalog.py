@@ -867,7 +867,7 @@ HARDWARE_CATALOG = {
 
 def init_hardware_db():
     """Initialize the hardware catalog database."""
-    conn = sqlite3.connect('hardware_catalog.db')
+    conn = sqlite3.connect('hardware/hardware_catalog.db')
     c = conn.cursor()
     
     # Create hardware catalog tables
@@ -923,7 +923,7 @@ def init_hardware_db():
 
 def migrate_hardware_catalog():
     """Migrate the HARDWARE_CATALOG data into the database."""
-    conn = sqlite3.connect('hardware_catalog.db')
+    conn = sqlite3.connect('hardware/hardware_catalog.db')
     c = conn.cursor()
     
     # Clear existing data

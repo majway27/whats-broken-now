@@ -3,7 +3,6 @@ import sqlite3
 from datetime import datetime
 import os
 import llm
-from hardware_catalog import init_hardware_db, migrate_hardware_catalog
 
 # Initialize LLM client
 client = llm.get_model("mistral-7b-instruct-v0")
@@ -30,7 +29,7 @@ def init_db():
 
 def get_hardware_db():
     """Get a connection to the hardware catalog database."""
-    return sqlite3.connect('hardware_catalog.db')
+    return sqlite3.connect('hardware/hardware_catalog.db')
 
 def get_active_tickets():
     conn = sqlite3.connect('tickets.db')
@@ -74,8 +73,8 @@ def print_status_pane():
     else:
         for ticket in tickets:
             print(f"\n{ticket['id']}: {ticket['title']} ({ticket['status']})")
-            print(f"Hardware: {ticket['hardware']['name']} by {ticket['hardware']['manufacturer']}")
-            print(f"Description: {ticket['description'][:100]}...")
+            #print(f"Hardware: {ticket['hardware']['name']} by {ticket['hardware']['manufacturer']}")
+            #print(f"Description: {ticket['description'][:100]}...")
     print("\n=====================")
 
 def print_menu():
@@ -83,7 +82,7 @@ def print_menu():
     print("\n=== Main Menu ===")
     print("1. Check for new tickets")
     print("2. Work new ticket")
-    print("3. Option Three")
+    print("3. Administrator")
     print("4. Logout for the day and go home")
     print("===============")
     print_status_pane()
@@ -288,9 +287,271 @@ def add_ticket_comment(ticket):
         print("\nComment cannot be empty.")
     input("Press Enter to continue...")
 
-def option_three():
-    print("\nYou selected Option Three!")
-    input("Press Enter to continue...")
+def administrator_options():
+    """Administrator menu for system management."""
+    while True:
+        clear_screen()
+        print("\n=== Administrator Menu ===")
+        print("1. View System Statistics")
+        print("2. Manage Hardware Catalog")
+        print("3. View All Tickets")
+        print("4. Return to Main Menu")
+        print("========================")
+        
+        choice = input("\nEnter your choice (1-4): ")
+        
+        if choice == '1':
+            view_system_statistics()
+        elif choice == '2':
+            manage_hardware_catalog()
+        elif choice == '3':
+            view_all_tickets()
+        elif choice == '4':
+            return
+        else:
+            print("Invalid choice. Please try again.")
+            input("Press Enter to continue...")
+
+def view_system_statistics():
+    """Display system statistics."""
+    clear_screen()
+    print("\n=== System Statistics ===")
+    
+    # Get ticket statistics
+    conn = sqlite3.connect('tickets.db')
+    c = conn.cursor()
+    
+    # Count tickets by status
+    c.execute("SELECT status, COUNT(*) FROM tickets GROUP BY status")
+    status_counts = dict(c.fetchall())
+    
+    # Total tickets
+    c.execute("SELECT COUNT(*) FROM tickets")
+    total_tickets = c.fetchone()[0]
+    
+    # Get hardware catalog statistics
+    hw_conn = get_hardware_db()
+    hw_c = hw_conn.cursor()
+    
+    # Count hardware items
+    hw_c.execute("SELECT COUNT(*) FROM hardware_items")
+    total_hardware = hw_c.fetchone()[0]
+    
+    # Count hardware categories
+    hw_c.execute("SELECT COUNT(*) FROM hardware_categories")
+    total_categories = hw_c.fetchone()[0]
+    
+    print(f"\nTickets:")
+    print(f"  Total Tickets: {total_tickets}")
+    for status, count in status_counts.items():
+        print(f"  {status}: {count}")
+    
+    print(f"\nHardware Catalog:")
+    print(f"  Total Hardware Items: {total_hardware}")
+    print(f"  Total Categories: {total_categories}")
+    
+    conn.close()
+    hw_conn.close()
+    
+    input("\nPress Enter to continue...")
+
+def manage_hardware_catalog():
+    """Manage the hardware catalog."""
+    while True:
+        clear_screen()
+        print("\n=== Hardware Catalog Management ===")
+        print("1. View All Hardware Items")
+        print("2. Add New Hardware Item")
+        print("3. Update Hardware Item")
+        print("4. Return to Administrator Menu")
+        print("================================")
+        
+        choice = input("\nEnter your choice (1-4): ")
+        
+        if choice == '1':
+            view_all_hardware()
+        elif choice == '2':
+            add_hardware_item()
+        elif choice == '3':
+            update_hardware_item()
+        elif choice == '4':
+            return
+        else:
+            print("Invalid choice. Please try again.")
+            input("Press Enter to continue...")
+
+def view_all_hardware():
+    """Display all hardware items in the catalog."""
+    clear_screen()
+    print("\n=== All Hardware Items ===")
+    
+    conn = get_hardware_db()
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT hi.id, hi.name, hi.manufacturer, hi.model, hc.name as category
+        FROM hardware_items hi
+        JOIN hardware_categories hc ON hi.category_id = hc.id
+        ORDER BY hi.name
+    """)
+    
+    items = c.fetchall()
+    if not items:
+        print("\nNo hardware items found in the catalog.")
+    else:
+        for item in items:
+            print(f"\nID: {item[0]}")
+            print(f"Name: {item[1]}")
+            print(f"Manufacturer: {item[2]}")
+            print(f"Model: {item[3]}")
+            print(f"Category: {item[4]}")
+            print("-" * 30)
+    
+    conn.close()
+    input("\nPress Enter to continue...")
+
+def add_hardware_item():
+    """Add a new hardware item to the catalog."""
+    clear_screen()
+    print("\n=== Add New Hardware Item ===")
+    
+    # Get hardware categories
+    conn = get_hardware_db()
+    c = conn.cursor()
+    c.execute("SELECT id, name FROM hardware_categories")
+    categories = c.fetchall()
+    
+    if not categories:
+        print("No categories found. Please create categories first.")
+        conn.close()
+        input("Press Enter to continue...")
+        return
+    
+    print("\nAvailable Categories:")
+    for cat_id, cat_name in categories:
+        print(f"{cat_id}. {cat_name}")
+    
+    try:
+        category_id = int(input("\nSelect category ID: "))
+        name = input("Enter hardware name: ")
+        manufacturer = input("Enter manufacturer: ")
+        model = input("Enter model: ")
+        
+        c.execute("""
+            INSERT INTO hardware_items (category_id, name, manufacturer, model)
+            VALUES (?, ?, ?, ?)
+        """, (category_id, name, manufacturer, model))
+        
+        conn.commit()
+        print("\nHardware item added successfully!")
+    except ValueError:
+        print("Invalid category ID. Please enter a number.")
+    except sqlite3.Error as e:
+        print(f"Error adding hardware item: {str(e)}")
+    finally:
+        conn.close()
+        input("Press Enter to continue...")
+
+def update_hardware_item():
+    """Update an existing hardware item."""
+    clear_screen()
+    print("\n=== Update Hardware Item ===")
+    
+    conn = get_hardware_db()
+    c = conn.cursor()
+    
+    # Get all hardware items
+    c.execute("""
+        SELECT id, name, manufacturer, model
+        FROM hardware_items
+        ORDER BY name
+    """)
+    items = c.fetchall()
+    
+    if not items:
+        print("No hardware items found in the catalog.")
+        conn.close()
+        input("Press Enter to continue...")
+        return
+    
+    print("\nAvailable Hardware Items:")
+    for item in items:
+        print(f"{item[0]}. {item[1]} ({item[2]} {item[3]})")
+    
+    try:
+        item_id = int(input("\nSelect item ID to update: "))
+        
+        # Verify item exists
+        c.execute("SELECT id FROM hardware_items WHERE id = ?", (item_id,))
+        if not c.fetchone():
+            print("Invalid item ID.")
+            conn.close()
+            input("Press Enter to continue...")
+            return
+        
+        # Get new values
+        name = input("Enter new name (press Enter to keep current): ")
+        manufacturer = input("Enter new manufacturer (press Enter to keep current): ")
+        model = input("Enter new model (press Enter to keep current): ")
+        
+        # Build update query
+        updates = []
+        params = []
+        if name:
+            updates.append("name = ?")
+            params.append(name)
+        if manufacturer:
+            updates.append("manufacturer = ?")
+            params.append(manufacturer)
+        if model:
+            updates.append("model = ?")
+            params.append(model)
+        
+        if updates:
+            params.append(item_id)
+            query = f"UPDATE hardware_items SET {', '.join(updates)} WHERE id = ?"
+            c.execute(query, params)
+            conn.commit()
+            print("\nHardware item updated successfully!")
+        else:
+            print("\nNo changes made.")
+    except ValueError:
+        print("Invalid item ID. Please enter a number.")
+    except sqlite3.Error as e:
+        print(f"Error updating hardware item: {str(e)}")
+    finally:
+        conn.close()
+        input("Press Enter to continue...")
+
+def view_all_tickets():
+    """View all tickets in the system."""
+    clear_screen()
+    print("\n=== All Tickets ===")
+    
+    conn = sqlite3.connect('tickets.db')
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at
+        FROM tickets
+        ORDER BY created_at DESC
+    """)
+    
+    tickets = c.fetchall()
+    if not tickets:
+        print("\nNo tickets found in the system.")
+    else:
+        for ticket in tickets:
+            print(f"\nTicket ID: {ticket[0]}")
+            print(f"Title: {ticket[1]}")
+            print(f"Status: {ticket[2]}")
+            print(f"Hardware: {ticket[4]} ({ticket[5]}) by {ticket[6]}")
+            print(f"Created: {ticket[7]}")
+            print(f"Description: {ticket[3]}")
+            print("-" * 50)
+    
+    conn.close()
+    input("\nPress Enter to continue...")
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -315,36 +576,4 @@ def generate_snarky_goodbye():
         "Leaving already? But who will I steal snacks from now?",
         "Don't forget to set your out of office message... again."
     ]
-    return random.choice(messages)
-
-def main():
-    init_db()  # Initialize tickets database
-    init_hardware_db()  # Initialize hardware catalog database
-    migrate_hardware_catalog()  # Populate hardware catalog database
-    while True:
-        clear_screen()  # Clear screen before showing menu
-        print_menu()
-        try:
-            choice = input("\nEnter your choice (1-4): ")
-            
-            if choice == '1':
-                check_new_tickets()
-            elif choice == '2':
-                work_new_ticket()
-            elif choice == '3':
-                option_three()
-            elif choice == '4':
-                print("\n" + generate_snarky_goodbye())
-                break
-            else:
-                print("\nInvalid choice. Please try again.")
-                input("Press Enter to continue...")
-        except KeyboardInterrupt:
-            print("\n\nExiting program...")
-            break
-        except Exception as e:
-            print(f"\nAn error occurred: {e}")
-            input("Press Enter to continue...")
-
-if __name__ == "__main__":
-    main() 
+    return random.choice(messages) 
