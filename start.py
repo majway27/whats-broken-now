@@ -1,12 +1,12 @@
 import menu
 from hardware.hardware_catalog import init_hardware_db, migrate_hardware_catalog
+from tickets import models, utils
 
 def main():
-    menu.init_db()  # Initialize tickets database
+    models.init_db()  # Initialize tickets database
     init_hardware_db()  # Initialize hardware catalog database
     migrate_hardware_catalog()  # Populate hardware catalog database
     while True:
-        menu.clear_screen()  # Clear screen before showing menu
         menu.print_menu()
         try:
             choice = input("\nEnter your choice (1-4): ")
@@ -18,7 +18,7 @@ def main():
             elif choice == '3':
                 menu.administrator_options()
             elif choice == '4':
-                print("\n" + menu.generate_snarky_goodbye())
+                print("\n" + utils.generate_snarky_goodbye())
                 break
             else:
                 print("\nInvalid choice. Please try again.")

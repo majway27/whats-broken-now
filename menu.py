@@ -1,11 +1,16 @@
 import random
 import sqlite3
-from datetime import datetime
 import os
+from datetime import datetime
 import llm
+from tickets import models, views, utils
 
 # Initialize LLM client
 client = llm.get_model("mistral-7b-instruct-v0")
+
+# Get the directory where this module is located
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+TICKETS_DB_PATH = os.path.join(MODULE_DIR, 'tickets', 'tickets.db')
 
 # Database setup
 def init_db():
@@ -32,7 +37,7 @@ def get_hardware_db():
     return sqlite3.connect('hardware/hardware_catalog.db')
 
 def get_active_tickets():
-    conn = sqlite3.connect('tickets.db')
+    conn = sqlite3.connect(TICKETS_DB_PATH)
     c = conn.cursor()
     c.execute("SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer FROM tickets")
     tickets = [{
@@ -50,7 +55,7 @@ def get_active_tickets():
     return tickets
 
 def add_ticket(ticket):
-    conn = sqlite3.connect('tickets.db')
+    conn = sqlite3.connect(TICKETS_DB_PATH)
     c = conn.cursor()
     c.execute("INSERT INTO tickets (id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
               (ticket['id'],
@@ -152,7 +157,7 @@ def check_new_tickets():
                     failure = random.choice(failures)[0]
                     
                     # Generate a reporter comment
-                    comment = generate_reporter_comment({
+                    comment = utils.generate_reporter_comment({
                         'name': hardware_item[1],
                         'manufacturer': hardware_item[2],
                         'model': hardware_item[3]
@@ -169,7 +174,7 @@ def check_new_tickets():
                             "manufacturer": hardware_item[2]
                         }
                     }
-                    add_ticket(new_ticket)
+                    models.add_ticket(new_ticket)
                     print(f"New ticket found: {new_ticket['id']}")
                     print(f"\nReporter Comment:\n{comment}")
         conn.close()
@@ -180,7 +185,7 @@ def check_new_tickets():
 
 def work_new_ticket():
     """Allow user to select and work on a ticket."""
-    tickets = get_active_tickets()
+    tickets = models.get_active_tickets()
     if not tickets:
         print("\nNo active tickets available to work on.")
         input("Press Enter to continue...")
@@ -202,7 +207,7 @@ def work_new_ticket():
             ticket_index = int(choice) - 1
             if 0 <= ticket_index < len(tickets):
                 selected_ticket = tickets[ticket_index]
-                show_ticket_interaction(selected_ticket)
+                views.show_ticket_interaction(selected_ticket)
                 return
             else:
                 print("Invalid ticket number. Please try again.")
@@ -263,7 +268,7 @@ def update_ticket_status(ticket):
             return
         elif choice in status_map:
             new_status = status_map[choice]
-            conn = sqlite3.connect('tickets.db')
+            conn = sqlite3.connect(TICKETS_DB_PATH)
             c = conn.cursor()
             c.execute("UPDATE tickets SET status = ? WHERE id = ?", 
                      (new_status, ticket['id']))
@@ -290,7 +295,7 @@ def add_ticket_comment(ticket):
 def administrator_options():
     """Administrator menu for system management."""
     while True:
-        clear_screen()
+        views.clear_screen()
         print("\n=== Administrator Menu ===")
         print("1. View System Statistics")
         print("2. Manage Hardware Catalog")
@@ -305,7 +310,7 @@ def administrator_options():
         elif choice == '2':
             manage_hardware_catalog()
         elif choice == '3':
-            view_all_tickets()
+            views.view_all_tickets()
         elif choice == '4':
             return
         else:
@@ -314,11 +319,11 @@ def administrator_options():
 
 def view_system_statistics():
     """Display system statistics."""
-    clear_screen()
+    views.clear_screen()
     print("\n=== System Statistics ===")
     
     # Get ticket statistics
-    conn = sqlite3.connect('tickets.db')
+    conn = sqlite3.connect(TICKETS_DB_PATH)
     c = conn.cursor()
     
     # Count tickets by status
@@ -358,7 +363,7 @@ def view_system_statistics():
 def manage_hardware_catalog():
     """Manage the hardware catalog."""
     while True:
-        clear_screen()
+        views.clear_screen()
         print("\n=== Hardware Catalog Management ===")
         print("1. View All Hardware Items")
         print("2. Add New Hardware Item")
@@ -382,7 +387,7 @@ def manage_hardware_catalog():
 
 def view_all_hardware():
     """Display all hardware items in the catalog."""
-    clear_screen()
+    views.clear_screen()
     print("\n=== All Hardware Items ===")
     
     conn = get_hardware_db()
@@ -412,7 +417,7 @@ def view_all_hardware():
 
 def add_hardware_item():
     """Add a new hardware item to the catalog."""
-    clear_screen()
+    views.clear_screen()
     print("\n=== Add New Hardware Item ===")
     
     # Get hardware categories
@@ -454,7 +459,7 @@ def add_hardware_item():
 
 def update_hardware_item():
     """Update an existing hardware item."""
-    clear_screen()
+    views.clear_screen()
     print("\n=== Update Hardware Item ===")
     
     conn = get_hardware_db()
@@ -525,10 +530,10 @@ def update_hardware_item():
 
 def view_all_tickets():
     """View all tickets in the system."""
-    clear_screen()
+    views.clear_screen()
     print("\n=== All Tickets ===")
     
-    conn = sqlite3.connect('tickets.db')
+    conn = sqlite3.connect(TICKETS_DB_PATH)
     c = conn.cursor()
     
     c.execute("""
