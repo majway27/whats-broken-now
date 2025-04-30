@@ -1,11 +1,12 @@
 import menu
-from hardware.hardware_catalog import init_hardware_db, migrate_hardware_catalog
-from tickets import models, utils
+from admin import views as admin_views
+from hardware import models as hardware_models, utils as hardware_utils
+from tickets import models as ticket_models, utils as ticket_utils
 
 def main():
-    models.init_db()  # Initialize tickets database
-    init_hardware_db()  # Initialize hardware catalog database
-    migrate_hardware_catalog()  # Populate hardware catalog database
+    ticket_models.init_db()  # Initialize tickets database
+    hardware_models.init_db()  # Initialize hardware catalog database
+    hardware_utils.migrate_hardware_catalog()  # Populate hardware catalog database
     while True:
         menu.print_menu()
         try:
@@ -16,9 +17,9 @@ def main():
             elif choice == '2':
                 menu.work_new_ticket()
             elif choice == '3':
-                menu.administrator_options()
+                admin_views.administrator_options()
             elif choice == '4':
-                print("\n" + utils.generate_snarky_goodbye())
+                print("\n" + ticket_utils.generate_snarky_goodbye())
                 break
             else:
                 print("\nInvalid choice. Please try again.")

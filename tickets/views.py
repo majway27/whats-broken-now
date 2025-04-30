@@ -1,9 +1,10 @@
 import os
 from . import models
+from shared import views as shared_views
 
 def clear_screen():
     """Clear the terminal screen."""
-    os.system('cls' if os.name == 'nt' else 'clear')
+    shared_views.clear_screen()
 
 def print_status_pane():
     """Print the status pane showing active tickets."""

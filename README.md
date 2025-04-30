@@ -61,6 +61,7 @@
             - Bad Customers
                 - Play the game, machavellian politics to foist bad actors on onto someone else.
     - Carve a path of destruction as a clandestine, subversive industrial saboteur.  Leave a trail of lost revenue and bodies in your wake..
+        - I just realized that this is the ultimate-boss-mode-screen since it looks like you are furiously hammering away at the CLI like a good little drone!  Just kidding don't play this at work.
 
 ## Inspiration
 
