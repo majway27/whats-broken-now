@@ -1,10 +1,20 @@
 import os
-from tickets import models as ticket_models
+from tickets import models as ticket_models, views as ticket_views
 from hardware import models as hardware_models
 
 def clear_screen():
     """Clear the terminal screen."""
     os.system('cls' if os.name == 'nt' else 'clear')
+
+def print_menu():
+    """Print the main menu options."""
+    print("\n=== Main Menu ===")
+    print("1. Check for new tickets")
+    print("2. Work new ticket")
+    print("3. Administrator")
+    print("4. Logout for the day and go home")
+    print("===============")
+    ticket_views.print_status_pane()
 
 def view_system_statistics():
     """Display system statistics."""
@@ -27,4 +37,4 @@ def view_system_statistics():
     print(f"  Total Hardware Items: {hardware_stats['total_hardware']}")
     print(f"  Total Categories: {hardware_stats['total_categories']}")
     
-    input("\nPress Enter to continue...") 
+    input("\nPress Enter to continue...")

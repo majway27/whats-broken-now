@@ -108,4 +108,47 @@ def view_all_tickets():
             print(f"Description: {ticket[3]}")
             print("-" * 50)
     
-    input("\nPress Enter to continue...") 
+    input("\nPress Enter to continue...")
+
+def check_new_tickets():
+    """Check for new tickets and display the result."""
+    print("\nChecking for new tickets...")
+    
+    new_ticket = models.check_new_tickets()
+    if new_ticket:
+        print(f"New ticket found: {new_ticket['id']}")
+    else:
+        print("No new tickets found.")
+    
+    input("Press Enter to continue...")
+
+def work_new_ticket():
+    """Allow user to select and work on a ticket."""
+    tickets = models.get_active_tickets()
+    if not tickets:
+        print("\nNo active tickets available to work on.")
+        input("Press Enter to continue...")
+        return
+
+    # Display tickets with numbers
+    print("\n=== Select a Ticket to Work On ===")
+    for i, ticket in enumerate(tickets, 1):
+        print(f"{i}. {ticket['id']}: {ticket['title']} ({ticket['status']})")
+    print("0. Return to main menu")
+    print("===============================")
+
+    while True:
+        try:
+            choice = input("\nEnter ticket number (or 0 to return): ")
+            if choice == '0':
+                return
+            
+            ticket_index = int(choice) - 1
+            if 0 <= ticket_index < len(tickets):
+                selected_ticket = tickets[ticket_index]
+                show_ticket_interaction(selected_ticket)
+                return
+            else:
+                print("Invalid ticket number. Please try again.")
+        except ValueError:
+            print("Please enter a valid number.")
