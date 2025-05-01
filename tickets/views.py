@@ -1,6 +1,7 @@
 from . import models
 from shared import views as shared_views
 from shared.rich_ui import print_menu, print_status, print_info, print_error, print_table, clear_screen
+from rich.console import Console
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -31,15 +32,19 @@ def view_all_tickets():
 
 def check_new_tickets():
     """Check for new tickets and display the result."""
-    print_status("Checking Tickets", "Checking for new tickets...")
+    clear_screen()
+    console = Console()
     
-    new_ticket = models.check_new_tickets()
+    with console.status("[bold yellow]Checking for new tickets...", spinner="dots") as status:
+        new_ticket = models.check_new_tickets()
+    
     if new_ticket:
         print_info("New Ticket Found", f"New ticket found: {new_ticket['id']}")
     else:
         print_info("No New Tickets", "No new tickets found.")
     
     input("Press Enter to continue...")
+    clear_screen()
 
 def print_status_pane():
     """Print the status pane showing active tickets."""
