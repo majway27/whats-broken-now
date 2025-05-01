@@ -1,17 +1,32 @@
-from .rich_ui import print_menu, print_status, print_info, print_error, clear_screen
+from .rich_ui import print_menu, print_status, print_info, print_error, clear_screen, print_game_header
 from tickets import models as ticket_models, views as ticket_views
 from hardware import models as hardware_models
 
+def print_common_header():
+    """Print the common game header with current status."""
+    # Get active ticket count
+    active_tickets = len(ticket_models.get_active_tickets())
+    
+    # TODO: Get inbox message count from inbox module
+    inbox_messages = 0  # Placeholder until inbox module is implemented
+    
+    # TODO: Get player level from player module
+    player_level = 1  # Placeholder until player module is implemented
+    
+    # Print the game header
+    print_game_header(active_tickets, inbox_messages, player_level)
+
 def show_main_menu():
     """Print the main menu options."""
+    # Print the common header
+    print_common_header()
+    
     menu_options = [
-        "1. Check for new tickets",
-        "2. Work new ticket",
-        "3. Administrator",
-        "4. Logout for the day and go home"
+        "1. Tickets Management",
+        "2. Administrator",
+        "Q. Logout (for the day and go home)"
     ]
     print_menu("Main Menu", menu_options)
-    ticket_views.print_status_pane()
 
 def view_system_statistics():
     """Display system statistics."""
