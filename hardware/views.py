@@ -89,6 +89,7 @@ def main_menu():
         elif choice == '2':
             browse_all_hardware()
         elif choice == '3':
+            clear_screen()  # Clear screen before returning
             return
         else:
             print("Invalid choice. Please try again.")
@@ -107,6 +108,7 @@ def browse_by_category():
         try:
             choice = int(choice)
             if choice == len(categories) + 1:
+                clear_screen()  # Clear screen before returning
                 return
             elif 1 <= choice <= len(categories):
                 browse_hardware_in_category(categories[choice - 1]['id'])
@@ -130,6 +132,7 @@ def browse_hardware_in_category(category_id):
         try:
             choice = int(choice)
             if choice == len(items) + 1:
+                clear_screen()  # Clear screen before returning
                 return
             elif 1 <= choice <= len(items):
                 show_hardware_details(items[choice - 1]['id'])
@@ -153,6 +156,7 @@ def browse_all_hardware():
         try:
             choice = int(choice)
             if choice == len(items) + 1:
+                clear_screen()  # Clear screen before returning
                 return
             elif 1 <= choice <= len(items):
                 show_hardware_details(items[choice - 1]['id'])
@@ -304,6 +308,7 @@ def manage_hardware_catalog():
         elif choice == '3':
             update_hardware_item()
         elif choice == '4':
+            clear_screen()  # Clear screen before returning
             return
         else:
             print("Invalid choice. Please try again.")

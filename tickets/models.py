@@ -24,6 +24,20 @@ def init_db():
                   hardware_manufacturer TEXT,
                   created_at TIMESTAMP)''')
     
+    # Create ticket history table
+    c.execute('''CREATE TABLE IF NOT EXISTS ticket_history
+                 (audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  ticket_id TEXT,
+                  title TEXT,
+                  status TEXT,
+                  description TEXT,
+                  hardware_name TEXT,
+                  hardware_model TEXT,
+                  hardware_manufacturer TEXT,
+                  comment TEXT,
+                  changed_at TIMESTAMP,
+                  FOREIGN KEY (ticket_id) REFERENCES tickets(id))''')
+    
     conn.commit()
     conn.close()
 
@@ -45,42 +59,6 @@ def get_active_tickets():
     } for row in c.fetchall()]
     conn.close()
     return tickets
-
-def add_ticket(ticket):
-    """Add a new ticket to the database."""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("INSERT INTO tickets (id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-              (ticket['id'],
-               ticket['title'],
-               ticket['status'],
-               ticket['description'],
-               ticket['hardware']['name'],
-               ticket['hardware']['model'],
-               ticket['hardware']['manufacturer'],
-               datetime.now()))
-    conn.commit()
-    conn.close()
-
-def add_ticket_comment(ticket):
-    """Add a comment to a ticket."""
-    print("\n=== Add Comment to Ticket ===")
-    comment = input("Enter your comment: ")
-    if comment.strip():
-        # In a real implementation, you would store the comment in a database
-        print("\nComment added successfully!")
-    else:
-        print("\nComment cannot be empty.")
-    input("Press Enter to continue...")
-
-def update_ticket_status(ticket_id, new_status):
-    """Update the status of a ticket."""
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("UPDATE tickets SET status = ? WHERE id = ?", 
-             (new_status, ticket_id))
-    conn.commit()
-    conn.close()
 
 def get_all_tickets():
     """Get all tickets from the database."""
@@ -112,6 +90,117 @@ def get_tickets_by_status():
     status_counts = dict(c.fetchall())
     conn.close()
     return status_counts
+
+def get_ticket_history(ticket_id):
+    """Get the complete history of a ticket including status changes and comments."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT audit_id, title, status, description, hardware_name, hardware_model, 
+               hardware_manufacturer, comment, changed_at
+        FROM ticket_history
+        WHERE ticket_id = ?
+        ORDER BY changed_at DESC
+    """, (ticket_id,))
+    
+    history = []
+    for row in c.fetchall():
+        history.append({
+            "audit_id": row[0],
+            "title": row[1],
+            "status": row[2],
+            "description": row[3],
+            "hardware": {
+                "name": row[4],
+                "model": row[5],
+                "manufacturer": row[6]
+            },
+            "comment": row[7],
+            "changed_at": row[8]
+        })
+    
+    conn.close()
+    return history 
+
+def add_ticket(ticket):
+    """Add a new ticket to the database."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("INSERT INTO tickets (id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+              (ticket['id'],
+               ticket['title'],
+               ticket['status'],
+               ticket['description'],
+               ticket['hardware']['name'],
+               ticket['hardware']['model'],
+               ticket['hardware']['manufacturer'],
+               datetime.now()))
+    conn.commit()
+    conn.close()
+
+def add_ticket_comment(ticket, comment):
+    """Add a comment to a ticket."""
+    if comment.strip():
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        
+        # Get current ticket state
+        c.execute("""
+            SELECT title, status, description, hardware_name, hardware_model, hardware_manufacturer
+            FROM tickets
+            WHERE id = ?
+        """, (ticket['id'],))
+        
+        ticket_data = c.fetchone()
+        if ticket_data:
+            # Insert into history table with comment
+            c.execute("""
+                INSERT INTO ticket_history 
+                (ticket_id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, comment, changed_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (ticket['id'], *ticket_data, comment, datetime.now()))
+            
+        conn.commit()
+        conn.close()
+        return True
+    return False
+
+def record_ticket_history(ticket_id):
+    """Record the current state of a ticket in the history table."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Get current ticket state
+    c.execute("""
+        SELECT title, status, description, hardware_name, hardware_model, hardware_manufacturer
+        FROM tickets
+        WHERE id = ?
+    """, (ticket_id,))
+    
+    ticket_data = c.fetchone()
+    if ticket_data:
+        # Insert into history table
+        c.execute("""
+            INSERT INTO ticket_history 
+            (ticket_id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, changed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (ticket_id, *ticket_data, datetime.now()))
+        
+    conn.commit()
+    conn.close()
+
+def update_ticket_status(ticket_id, new_status):
+    """Update the status of a ticket."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("UPDATE tickets SET status = ? WHERE id = ?", 
+             (new_status, ticket_id))
+    conn.commit()
+    conn.close()
+    
+    # Record the change in history
+    record_ticket_history(ticket_id)
 
 def check_new_tickets():
     """Check for and potentially create a new ticket."""

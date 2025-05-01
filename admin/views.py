@@ -26,6 +26,7 @@ def administrator_options():
         elif choice == '3':
             ticket_views.view_all_tickets()
         elif choice == '4':
+            clear_screen()
             return
         else:
             print_error("Invalid choice. Please try again.")
