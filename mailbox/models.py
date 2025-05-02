@@ -27,68 +27,71 @@ def init_db():
 
 def add_message(sender, recipient, subject, content):
     """Add a new message to the database."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        INSERT INTO messages (sender, recipient, subject, content, timestamp, is_read)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (sender, recipient, subject, content, datetime.now(), False))
-    
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            INSERT INTO messages (sender, recipient, subject, content, timestamp, is_read)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (sender, recipient, subject, content, datetime.now(), False))
+        conn.commit()
 
 def get_messages(recipient):
     """Get all messages for a recipient."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT id, sender, subject, content, timestamp, is_read
-        FROM messages
-        WHERE recipient = ?
-        ORDER BY timestamp DESC
-    ''', (recipient,))
-    
-    messages = cursor.fetchall()
-    conn.close()
-    return messages
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, sender, subject, content, timestamp, is_read
+            FROM messages
+            WHERE recipient = ?
+            ORDER BY timestamp DESC
+        ''', (recipient,))
+        return cursor.fetchall()
 
 def mark_as_read(message_id):
     """Mark a message as read."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        UPDATE messages
-        SET is_read = 1
-        WHERE id = ?
-    ''', (message_id,))
-    
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            UPDATE messages
+            SET is_read = 1
+            WHERE id = ?
+        ''', (message_id,))
+        conn.commit()
 
 def get_unread_count(recipient):
     """Get the count of unread messages for a recipient."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('''
-        SELECT COUNT(*)
-        FROM messages
-        WHERE recipient = ? AND is_read = 0
-    ''', (recipient,))
-    
-    count = cursor.fetchone()[0]
-    conn.close()
-    return count
+    with sqlite3.connect(DB_PATH) as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT COUNT(*)
+            FROM messages
+            WHERE recipient = ? AND is_read = 0
+        ''', (recipient,))
+        return cursor.fetchone()[0]
 
 def delete_message(message_id):
-    """Delete a message from the database."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    
-    cursor.execute('DELETE FROM messages WHERE id = ?', (message_id,))
-    
-    conn.commit()
-    conn.close() 
+    """Delete a message from the database.
+    Returns True if message was deleted, False if message didn't exist."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            # First check if message exists
+            cursor.execute('SELECT id FROM messages WHERE id = ?', (message_id,))
+            if not cursor.fetchone():
+                return False
+            
+            # Delete the message
+            cursor.execute('DELETE FROM messages WHERE id = ?', (message_id,))
+            
+            # Verify the deletion
+            cursor.execute('SELECT id FROM messages WHERE id = ?', (message_id,))
+            if cursor.fetchone():
+                # If we can still find the message, something went wrong
+                conn.rollback()
+                return False
+                
+            conn.commit()
+            return True
+    except sqlite3.Error as e:
+        print(f"Database error: {e}")
+        return False 

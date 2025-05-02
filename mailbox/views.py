@@ -170,8 +170,13 @@ def delete_message():
     
     try:
         msg_id = int(choice)
-        models.delete_message(msg_id)
-        print_status("Message deleted successfully!")
+        result = models.delete_message(msg_id)
+        if result is True:
+            print_status("Message Status", "Message deleted successfully!")
+        elif result is False:
+            print_error("Failed to delete message. It may not exist or there was a database error.")
+        else:
+            print_error("An unexpected error occurred while deleting the message.")
     except ValueError:
         print_error("Invalid message number.")
     
