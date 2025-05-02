@@ -18,6 +18,15 @@ class RoleRepository:
         return Role(id=role_id, title=title, description=description, created_at=None)
 
     @staticmethod
+    def get_by_title(title: str) -> Optional[Role]:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM roles WHERE title = ?', (title,))
+        row = cursor.fetchone()
+        conn.close()
+        return Role.from_db_row(row) if row else None
+
+    @staticmethod
     def get_by_id(role_id: int) -> Optional[Role]:
         conn = get_db_connection()
         cursor = conn.cursor()

@@ -2,6 +2,7 @@ from . import models
 from shared import views as shared_views
 from shared.rich_ui import print_menu, print_status, print_info, print_error, clear_screen
 from datetime import datetime
+from human_resources.repository import EmployeeRepository
 
 def format_message_list(messages):
     """Format a list of messages for display."""
@@ -85,14 +86,39 @@ def view_message(msg_id):
     models.mark_as_read(msg_id)
     
     print_info("Message Details", f"""
-From: {sender}
-Subject: {subject}
-Date: {timestamp}
+        From: {sender}
+        Subject: {subject}
+        Date: {timestamp}
 
-{content}
+        {content}
     """)
     
     input("\nPress Enter to continue...")
+
+def select_recipient():
+    """Display a list of employees and allow selection of a recipient."""
+    employees = EmployeeRepository.get_all()
+    if not employees:
+        print_error("No employees found in the system.")
+        return None
+    
+    print("\nSelect a recipient:")
+    for i, emp in enumerate(employees, 1):
+        print(f"{i}. {emp.first_name} {emp.last_name} ({emp.email})")
+    
+    while True:
+        try:
+            choice = input("\nEnter recipient number (or Q to return): ")
+            if choice.upper() == 'Q':
+                return None
+            
+            index = int(choice) - 1
+            if 0 <= index < len(employees):
+                return employees[index].email
+            else:
+                print_error("Invalid selection. Please try again.")
+        except ValueError:
+            print_error("Please enter a valid number.")
 
 def send_message():
     """Send a new message."""
@@ -100,7 +126,10 @@ def send_message():
     shared_views.print_common_header()
     
     print_info("Send Message", "Enter message details:")
-    recipient = input("To: ")
+    recipient = select_recipient()
+    if not recipient:
+        return
+    
     subject = input("Subject: ")
     
     print("\nEnter your message (press Enter twice to finish):")
@@ -115,7 +144,7 @@ def send_message():
     
     if recipient and subject and content:
         models.add_message("player", recipient, subject, content)
-        print_status("Message sent successfully!")
+        print_status("Message Status", "Message sent successfully!")
     else:
         print_error("Message not sent. All fields are required.")
     
