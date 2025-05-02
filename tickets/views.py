@@ -19,22 +19,24 @@ def tickets_management_menu():
         print_status_pane()
         
         menu_options = [
-            "1. Check for new tickets",
-            "2. Work on active ticket",
-            "3. View all tickets",
+            #"1. Check for new tickets",
+            "1. Work on active ticket",
+            "2. View all tickets",
             "Q. Return to main menu"
         ]
         print_menu("Tickets Management", menu_options)
         
         choice = input("\nEnter your choice (1-3, Q to return to main menu): ")
         
+        #if choice == '1':
+        #    check_new_tickets()
+        #elif choice == '2':
         if choice == '1':
-            check_new_tickets()
-        elif choice == '2':
             work_new_ticket()
-        elif choice == '3':
+        #elif choice == '3':
+        elif choice == '2':
             view_all_tickets()
-        elif choice == ('q' or 'Q'):
+        elif choice.upper() == 'Q':
             clear_screen()
             return
         else:
@@ -104,7 +106,7 @@ def show_ticket_interaction(ticket):
             add_ticket_comment(ticket)
         elif choice == '3':
             view_ticket_history(ticket)
-        elif choice == ('q' or 'Q'):
+        elif choice.upper() == 'Q':
             clear_screen()
             return
         else:
@@ -139,7 +141,7 @@ def work_new_ticket():
     while True:
         try:
             choice = input("\nEnter ticket number (or 0 to return): ")
-            if choice == ('q' or 'Q'):
+            if choice.upper() == 'Q':
                 clear_screen()
                 return
             

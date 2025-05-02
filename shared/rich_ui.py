@@ -6,10 +6,11 @@ from rich import box
 from rich.control import Control
 from rich.columns import Columns
 
+
 # Create a global console instance
 console = Console()
 
-def print_game_header(active_tickets: int, inbox_messages: int, player_level: int) -> None:
+def print_game_header(active_tickets: int, mailbox_messages: int, player_level: int) -> None:
     """Print the common game header with status boxes."""
     # Create status boxes
     tickets_box = Panel(
@@ -19,8 +20,8 @@ def print_game_header(active_tickets: int, inbox_messages: int, player_level: in
         expand=False
     )
     
-    inbox_box = Panel(
-        f"📬 Inbox Messages\n[bold cyan]{inbox_messages}[/]",
+    mailbox_box = Panel(
+        f"📬 Mailbox Messages\n[bold cyan]{mailbox_messages}[/]",
         style="bold yellow",
         box=box.ROUNDED,
         expand=False
@@ -39,7 +40,7 @@ def print_game_header(active_tickets: int, inbox_messages: int, player_level: in
     table.add_column(justify="center")
     table.add_column(justify="right")
     
-    table.add_row(tickets_box, inbox_box, level_box)
+    table.add_row(tickets_box, mailbox_box, level_box)
     
     # Print the table
     console.print(table)

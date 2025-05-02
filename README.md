@@ -31,7 +31,7 @@
 
 - Player Tasks
 
-### Inbox
+### Mailbox
 
 - Overly, this is a functional surface for notifications.
     - Enables async chat with game NPCs (non customer / ticket submitters)
