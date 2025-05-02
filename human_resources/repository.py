@@ -77,6 +77,16 @@ class EmployeeRepository:
         return Employee.from_db_row(row) if row else None
 
     @staticmethod
+    def get_by_email(email: str) -> Optional[Employee]:
+        """Get an employee by their email address."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM employees WHERE email = ?', (email,))
+        row = cursor.fetchone()
+        conn.close()
+        return Employee.from_db_row(row) if row else None
+
+    @staticmethod
     def get_all() -> List[Employee]:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -106,6 +116,17 @@ class EmployeeRepository:
             'UPDATE employees SET employment_status = ? WHERE id = ?',
             (employment_status, employee_id)
         )
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+
+    @staticmethod
+    def deactivate_all_employees() -> bool:
+        """Deactivate all employees in the system."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('UPDATE employees SET employment_status = "inactive"')
         success = cursor.rowcount > 0
         conn.commit()
         conn.close()

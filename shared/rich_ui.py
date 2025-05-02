@@ -10,7 +10,7 @@ from rich.columns import Columns
 # Create a global console instance
 console = Console()
 
-def print_game_header(active_tickets: int, mailbox_messages: int, game_day: int, player_level: int, meetings_count: int) -> None:
+def print_game_header(active_tickets: int, mailbox_messages: int, game_day: int, player_level: int, meetings_count: int, employee_name: str = "") -> None:
     """Print the common game header with status boxes."""
     # Create status boxes
     game_day_box = Panel(
@@ -70,7 +70,7 @@ def print_game_header(active_tickets: int, mailbox_messages: int, game_day: int,
     )
     
     level_box = Panel(
-        f"⭐ [dark_goldenrod]Employee Rating[/]  [bold sea_green2]Level {player_level}[/]",
+        f"👤 [dark_goldenrod]Employee[/]  [bold sea_green2]{employee_name}[/]\n⭐ [dark_goldenrod]Employee Rating[/]  [bold sea_green2]Level {player_level}[/]",
         style="yellow4",
         box=box.ROUNDED,
         expand=False

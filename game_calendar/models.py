@@ -48,6 +48,22 @@ def init_db():
     conn.commit()
     conn.close()
 
+def reset_game_days():
+    """Reset the game days to day 1."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Clear existing game days and related data
+    c.execute('DELETE FROM meeting_attendees')
+    c.execute('DELETE FROM schedule')
+    c.execute('DELETE FROM game_days')
+    
+    # Insert day 1
+    c.execute('INSERT INTO game_days (day_number) VALUES (1)')
+    
+    conn.commit()
+    conn.close()
+
 def get_current_game_day() -> int:
     """Get the current game day number."""
     conn = sqlite3.connect(DB_PATH)

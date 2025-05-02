@@ -1,4 +1,6 @@
 from .rich_ui import print_game_header
+from player.repository import PlayerRepository
+from human_resources.repository import EmployeeRepository
 
 def print_common_header():
     """Print the common game header with current status."""
@@ -21,5 +23,15 @@ def print_common_header():
     meetings = calendar_models.get_meetings(game_day)
     meetings_count = len(meetings)
     
+    # Get current player's name
+    players = PlayerRepository.get_all()
+    employee_name = ""
+    if players:
+        current_player = players[0]  # Get the most recent player
+        if current_player.employee_id:
+            employee = EmployeeRepository.get_by_id(current_player.employee_id)
+            if employee:
+                employee_name = f"{employee.first_name} {employee.last_name}"
+    
     # Print the game header
-    print_game_header(active_tickets, mailbox_messages, game_day, player_level, meetings_count) 
+    print_game_header(active_tickets, mailbox_messages, game_day, player_level, meetings_count, employee_name) 

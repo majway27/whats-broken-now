@@ -3,6 +3,9 @@ from typing import Optional
 from . import RoleRepository, EmployeeRepository, PerformanceRatingRepository
 from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
+from shared.rich_ui import print_info, print_error, print_status
+from player.repository import PlayerRepository
+import sys
 
 
 def show_hr_menu():
@@ -15,11 +18,12 @@ def show_hr_menu():
             "1. Employee Management",
             "2. Role Management",
             "3. Performance Reviews",
+            "X. Quit Your Job",
             "Q. Back to Main Menu"
         ]
         print_menu("Human Resources", menu_options)
         
-        choice = input("\nEnter your choice (1-3, Q): ")
+        choice = input("\nEnter your choice (1-3, Q, B): ")
         
         if choice == '1':
             employee_management_menu()
@@ -27,13 +31,58 @@ def show_hr_menu():
             role_management_menu()
         elif choice == '3':
             performance_reviews_menu()
+        elif choice.upper() == 'X':
+            if handle_player_quit_job():
+                return True
         elif choice.upper() == 'Q':
             clear_screen()
-            return
+            return False
         else:
             print("\nInvalid choice. Please try again.")
             input("Press Enter to continue...")
             clear_screen()
+
+def handle_player_quit_job():
+    """Handle player quitting their job by marking the current player as inactive."""
+    clear_screen()
+    print_common_header()
+    
+    print_info("🖕 Quit Job", """
+    Are you sure you want to quit your job?
+    This will mark your employee record as inactive.
+    Next time you start the game, you will be a new employee.
+    """)
+    
+    choice = input("\n🌋 Do you REALLY want to quit? (y/N): ").upper()
+    if choice == 'Y':
+        try:
+            # Get current player
+            players = PlayerRepository.get_all()
+            if not players:
+                print_error("Error", "No active player found.")
+                input("\nPress Enter to continue...")
+                return False
+                
+            current_player = players[0]  # Get the first player (should be the active one)
+            
+            # Mark employee as inactive
+            if current_player.employee_id:
+                EmployeeRepository.update_employment_status(current_player.employee_id, 'inactive')
+                print_status("Success", "You have been marked as inactive. Goodbye!")
+                print_info("Exiting", "Thank you for playing Whats Broken Now!")
+                input("\nPress Enter to exit...")
+                sys.exit(0)  # Exit the game completely
+            else:
+                print_error("Error", "No employee record found for current player.")
+                input("\nPress Enter to continue...")
+                return False
+                
+        except Exception as e:
+            print_error("Error", f"An error occurred while quitting: {str(e)}")
+            input("\nPress Enter to continue...")
+            return False
+    
+    return False
 
 def employee_management_menu():
     """Handle employee management operations."""
@@ -46,11 +95,12 @@ def employee_management_menu():
             "2. Add New Employee",
             "3. Update Employee Role",
             "4. Update Employment Status",
+            "5. LAYOFF MODE!!",
             "Q. Back to HR Menu"
         ]
         print_menu("Employee Management", menu_options)
         
-        choice = input("\nEnter your choice (1-4, Q): ")
+        choice = input("\nEnter your choice (1-5, Q): ")
         
         if choice == '1':
             list_employees()
@@ -60,6 +110,8 @@ def employee_management_menu():
             update_employee_role()
         elif choice == '4':
             update_employment_status()
+        elif choice == '5':
+            deactivate_all_employees()
         elif choice.upper() == 'Q':
             return
         else:
@@ -436,6 +488,24 @@ def view_employee_reviews():
         print(f"\nError: {str(e)}")
     except Exception as e:
         print(f"\nError viewing reviews: {str(e)}")
+    
+    input("\nPress Enter to continue...")
+    clear_screen()
+
+def deactivate_all_employees():
+    """Deactivate all employees in the system."""
+    clear_screen()
+    print_common_header()
+    print("\nLAYOFF MODE ACTIVATED")
+    print("-" * 80)
+    
+    try:
+        if EmployeeRepository.deactivate_all_employees():
+            print("\nAll employees have been laid off! The office is now empty...")
+        else:
+            print("\nNo employees were affected.")
+    except Exception as e:
+        print(f"\nError during layoff: {str(e)}")
     
     input("\nPress Enter to continue...")
     clear_screen() 
