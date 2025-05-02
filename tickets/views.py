@@ -1,6 +1,8 @@
 from . import models
 from shared import views as shared_views
-from shared.rich_ui import print_menu, print_status, print_info, print_error, print_table, clear_screen, print_game_header
+from shared.views import print_menu, clear_screen
+from shared.common_ui import print_common_header
+from shared.rich_ui import print_status, print_info, print_error, print_table
 from rich.console import Console
 
 def clear_screen():
@@ -13,7 +15,7 @@ def tickets_management_menu():
         clear_screen()
         
         # Display common header
-        shared_views.print_common_header()
+        print_common_header()
         
         # Display active tickets at the top
         print_status_pane()
@@ -60,7 +62,7 @@ def show_ticket_interaction(ticket):
         clear_screen()
         
         # Display common header
-        shared_views.print_common_header()
+        print_common_header()
 
         # Display ticket information
         ticket_info = f"Title: {ticket['title']}\n"
@@ -123,7 +125,7 @@ def work_new_ticket():
         return
 
     # Display common header
-    shared_views.print_common_header()
+    print_common_header()
 
     # Display tickets with numbers
     headers = ["#", "Ticket ID", "Title", "Status"]

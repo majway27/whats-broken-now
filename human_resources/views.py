@@ -1,7 +1,8 @@
 from datetime import date
 from typing import Optional
 from . import RoleRepository, EmployeeRepository, PerformanceRatingRepository
-from shared.views import print_menu, print_common_header, clear_screen
+from shared.views import print_menu, clear_screen
+from shared.common_ui import print_common_header
 
 
 def show_hr_menu():

@@ -1,6 +1,7 @@
 from . import models
-from shared import views as shared_views
-from shared.rich_ui import print_menu, print_status, print_info, print_error, clear_screen
+from shared.views import print_menu, clear_screen
+from shared.common_ui import print_common_header
+from shared.rich_ui import print_status, print_info, print_error
 from datetime import datetime
 from human_resources.repository import EmployeeRepository
 
@@ -17,7 +18,7 @@ def show_mailbox_menu():
     """Display the mailbox menu."""
     while True:
         clear_screen()
-        shared_views.print_common_header()
+        print_common_header()
         
         # Get messages for the current user (using a default user for now)
         messages = models.get_messages("player")
@@ -39,6 +40,7 @@ def show_mailbox_menu():
         elif choice == '3':
             delete_message()
         elif choice.upper() == 'Q':
+            clear_screen()
             break
         else:
             print_error("Invalid choice. Please try again.")
@@ -47,7 +49,7 @@ def show_mailbox_menu():
 def view_messages():
     """View all messages."""
     clear_screen()
-    shared_views.print_common_header()
+    print_common_header()
     
     messages = models.get_messages("player")
     if not messages:
@@ -72,7 +74,7 @@ def view_messages():
 def view_message(msg_id):
     """View a specific message."""
     clear_screen()
-    shared_views.print_common_header()
+    print_common_header()
     
     messages = models.get_messages("player")
     message = next((msg for msg in messages if msg[0] == msg_id), None)
@@ -123,7 +125,7 @@ def select_recipient():
 def send_message():
     """Send a new message."""
     clear_screen()
-    shared_views.print_common_header()
+    print_common_header()
     
     print_info("Send Message", "Enter message details:")
     recipient = select_recipient()
@@ -153,7 +155,7 @@ def send_message():
 def delete_message():
     """Delete a message."""
     clear_screen()
-    shared_views.print_common_header()
+    print_common_header()
     
     messages = models.get_messages("player")
     if not messages:

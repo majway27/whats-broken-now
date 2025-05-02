@@ -7,6 +7,7 @@ from game_queue.role_agents import init_role_agents, cleanup_role_agents
 from game_queue.hr_agent import init_hr_agent, cleanup_hr_agent
 from mailbox import models as mailbox_models, views as mailbox_views
 from human_resources import database as hr_database, utils as hr_utils
+from game_calendar import models as calendar_models
 
 
 def main():
@@ -23,6 +24,8 @@ def main():
     hr_database.init_db()  # Initialize human resources database
     if first_time_setup:
         hr_utils.migrate_employee_directory()  # Populate human resources database
+    
+    calendar_models.init_db()  # Initialize calendar database
     
     # Initialize queue system
     queue_manager = init_queue()
