@@ -36,6 +36,16 @@ def show_main_menu():
         from admin import views as admin_views
         admin_views.administrator_options()
     elif choice.upper() == 'Q':
+        from .utils import generate_snarky_goodbye
+        from game_calendar import models as calendar_models
+        
+        # Show snarky goodbye message
+        print_status("Coworker's Farewell", generate_snarky_goodbye())
+        
+        # Advance the day
+        current_day = calendar_models.get_current_game_day()
+        new_day = calendar_models.advance_game_day()
+        print(f"\nAdvanced from Day {current_day} to Day {new_day}")
         print("\nLogging out... Goodbye!")
         return True
     else:

@@ -46,12 +46,12 @@ class RoleRepository:
 
 class EmployeeRepository:
     @staticmethod
-    def create(first_name: str, last_name: str, email: str, hire_date: date, role_id: Optional[int] = None) -> Employee:
+    def create(first_name: str, last_name: str, email: str, hire_date: date, role_id: Optional[int] = None, employment_status: str = 'active') -> Employee:
         conn = get_db_connection()
         cursor = conn.cursor()
         cursor.execute(
-            'INSERT INTO employees (first_name, last_name, email, role_id, hire_date) VALUES (?, ?, ?, ?, ?)',
-            (first_name, last_name, email, role_id, hire_date.isoformat())
+            'INSERT INTO employees (first_name, last_name, email, role_id, hire_date, employment_status) VALUES (?, ?, ?, ?, ?, ?)',
+            (first_name, last_name, email, role_id, hire_date.isoformat(), employment_status)
         )
         employee_id = cursor.lastrowid
         conn.commit()
@@ -63,6 +63,7 @@ class EmployeeRepository:
             email=email,
             role_id=role_id,
             hire_date=hire_date,
+            employment_status=employment_status,
             created_at=None
         )
 
@@ -91,6 +92,19 @@ class EmployeeRepository:
         cursor.execute(
             'UPDATE employees SET role_id = ? WHERE id = ?',
             (role_id, employee_id)
+        )
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+
+    @staticmethod
+    def update_employment_status(employee_id: int, employment_status: str) -> bool:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE employees SET employment_status = ? WHERE id = ?',
+            (employment_status, employee_id)
         )
         success = cursor.rowcount > 0
         conn.commit()

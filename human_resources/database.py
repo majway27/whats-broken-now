@@ -33,6 +33,7 @@ def init_db():
         email TEXT UNIQUE NOT NULL,
         role_id INTEGER,
         hire_date DATE NOT NULL,
+        employment_status TEXT NOT NULL DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (role_id) REFERENCES roles (id)
     )
@@ -50,6 +51,13 @@ def init_db():
         FOREIGN KEY (employee_id) REFERENCES employees (id)
     )
     ''')
+
+    # Migrate existing data if needed
+    try:
+        cursor.execute("SELECT employment_status FROM employees LIMIT 1")
+    except sqlite3.OperationalError:
+        # Column doesn't exist, add it
+        cursor.execute('ALTER TABLE employees ADD COLUMN employment_status TEXT NOT NULL DEFAULT "active"')
 
     conn.commit()
     conn.close()

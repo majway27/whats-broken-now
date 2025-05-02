@@ -26,10 +26,16 @@ class Employee:
     email: str
     role_id: Optional[int]
     hire_date: date
+    employment_status: str
     created_at: Optional[datetime]
 
     @classmethod
     def from_db_row(cls, row):
+        try:
+            employment_status = row['employment_status']
+        except (KeyError, IndexError):
+            employment_status = 'active'
+            
         return cls(
             id=row['id'],
             first_name=row['first_name'],
@@ -37,6 +43,7 @@ class Employee:
             email=row['email'],
             role_id=row['role_id'],
             hire_date=date.fromisoformat(row['hire_date']),
+            employment_status=employment_status,
             created_at=datetime.fromisoformat(row['created_at']) if row['created_at'] else None
         )
 

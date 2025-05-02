@@ -45,11 +45,12 @@ def employee_management_menu():
             "1. List All Employees",
             "2. Add New Employee",
             "3. Update Employee Role",
+            "4. Update Employment Status",
             "Q. Back to HR Menu"
         ]
         print_menu("Employee Management", menu_options)
         
-        choice = input("\nEnter your choice (1-3, Q): ")
+        choice = input("\nEnter your choice (1-4, Q): ")
         
         if choice == '1':
             list_employees()
@@ -57,6 +58,8 @@ def employee_management_menu():
             add_employee()
         elif choice == '3':
             update_employee_role()
+        elif choice == '4':
+            update_employment_status()
         elif choice.upper() == 'Q':
             return
         else:
@@ -130,7 +133,7 @@ def list_employees():
         for emp in employees:
             role = RoleRepository.get_by_id(emp.role_id) if emp.role_id else None
             role_title = role.title if role else "No Role"
-            print(f"{emp.id}. {emp.first_name} {emp.last_name} - {emp.email} - {role_title}")
+            print(f"{emp.id}. {emp.first_name} {emp.last_name} - {emp.email} - {role_title} - Status: {emp.employment_status}")
     
     input("\nPress Enter to continue...")
     clear_screen()
@@ -163,12 +166,26 @@ def add_employee():
         hire_date_str = input("Hire Date (YYYY-MM-DD): ")
         hire_date = date.fromisoformat(hire_date_str)
         
+        # Get employment status
+        print("\nEmployment Status:")
+        print("1. Active")
+        print("2. On Leave")
+        print("3. Terminated")
+        status_choice = input("\nEnter status (1-3, default: 1): ")
+        status_map = {
+            '1': 'active',
+            '2': 'on_leave',
+            '3': 'terminated'
+        }
+        employment_status = status_map.get(status_choice, 'active')
+        
         employee = EmployeeRepository.create(
             first_name=first_name,
             last_name=last_name,
             email=email,
             hire_date=hire_date,
-            role_id=role_id
+            role_id=role_id,
+            employment_status=employment_status
         )
         
         print(f"\nEmployee {employee.first_name} {employee.last_name} added successfully!")
@@ -228,6 +245,61 @@ def update_employee_role():
         print(f"\nError: {str(e)}")
     except Exception as e:
         print(f"\nError updating role: {str(e)}")
+    
+    input("\nPress Enter to continue...")
+    clear_screen()
+
+def update_employment_status():
+    """Update an employee's employment status."""
+    clear_screen()
+    print_common_header()
+    print("\nUpdate Employment Status")
+    print("-" * 80)
+    
+    try:
+        # List employees
+        employees = EmployeeRepository.get_all()
+        if not employees:
+            print("No employees found.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print("\nSelect Employee:")
+        for emp in employees:
+            print(f"{emp.id}. {emp.first_name} {emp.last_name} (Current Status: {emp.employment_status})")
+        
+        employee_id = int(input("\nEnter Employee ID: "))
+        employee = EmployeeRepository.get_by_id(employee_id)
+        if not employee:
+            print("Employee not found.")
+            input("\nPress Enter to continue...")
+            return
+        
+        print("\nSelect New Status:")
+        print("1. Active")
+        print("2. On Leave")
+        print("3. Terminated")
+        status_choice = input("\nEnter status (1-3): ")
+        status_map = {
+            '1': 'active',
+            '2': 'on_leave',
+            '3': 'terminated'
+        }
+        
+        if status_choice not in status_map:
+            print("Invalid status choice.")
+            input("\nPress Enter to continue...")
+            return
+        
+        new_status = status_map[status_choice]
+        if EmployeeRepository.update_employment_status(employee_id, new_status):
+            print("\nEmployment status updated successfully!")
+        else:
+            print("\nFailed to update employment status.")
+    except ValueError as e:
+        print(f"\nError: {str(e)}")
+    except Exception as e:
+        print(f"\nError updating status: {str(e)}")
     
     input("\nPress Enter to continue...")
     clear_screen()

@@ -20,7 +20,6 @@ def show_calendar_menu():
             "2. Add Meeting",
             "3. Edit Meeting",
             "4. Delete Meeting",
-            "5. Advance to Next Day",
             "Q. Return to Main Menu"
         ]
         
@@ -35,8 +34,6 @@ def show_calendar_menu():
             edit_meeting(current_day)
         elif choice == '4':
             delete_meeting(current_day)
-        elif choice == '5':
-            advance_day()
         elif choice == 'Q':
             clear_screen()
             break
@@ -254,15 +251,4 @@ def delete_meeting(game_day: int):
     except ValueError:
         print_error("Invalid meeting ID.")
     
-    input("\nPress Enter to continue...")
-
-def advance_day():
-    """Advance to the next game day."""
-    clear_screen()
-    print_common_header()
-    
-    current_day = models.get_current_game_day()
-    new_day = models.advance_game_day()
-    
-    print_status("Day Advanced", f"Advanced from Day {current_day} to Day {new_day}")
     input("\nPress Enter to continue...") 
