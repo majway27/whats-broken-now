@@ -3,6 +3,10 @@ from datetime import date
 # Seed data for roles
 ROLES = [
     {
+        'title': 'Vice President, Operations',
+        'description': 'The Vice President of Operations is a senior executive position responsible for overseeing and optimizing all operational aspects of the organization. This role requires strategic leadership, operational excellence, and the ability to drive organizational efficiency and growth.'
+    },
+    {
         'title': 'HR Manager',
         'description': 'Oversees all human resources operations and policies'
     },
@@ -26,6 +30,13 @@ ROLES = [
 
 # Seed data for employees
 EMPLOYEES = [
+    {
+        'first_name': 'Sarah',
+        'last_name': 'Chen',
+        'email': 'sarah.chen@company.com',
+        'role_title': 'Vice President, Operations',
+        'hire_date': date(2019, 1, 1)
+    },
     {
         'first_name': 'Joanna',
         'last_name': 'Flair',
