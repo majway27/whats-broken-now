@@ -25,12 +25,13 @@ def show_main_menu():
     menu_options = [
         "1. Tickets Management",
         "2. Mailbox",
-        "Z. Administrator",
+        "3. Human Resources",
+        "Z. SysAdmin",
         "Q. Logout (for the day and go home)"
     ]
     print_menu("Main Menu", menu_options)
     
-    choice = input("\nEnter your choice (1-3): ")
+    choice = input("\nEnter your choice (1-3, Z, Q): ")
     
     if choice == '1':
         from tickets import views as ticket_views
@@ -38,6 +39,9 @@ def show_main_menu():
     elif choice == '2':
         from mailbox import views as mailbox_views
         mailbox_views.show_mailbox_menu()
+    elif choice == '3':
+        from human_resources import views as hr_views
+        hr_views.show_hr_menu()
     elif choice.upper() == 'Z':
         from admin import views as admin_views
         admin_views.administrator_options()

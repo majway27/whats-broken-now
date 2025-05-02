@@ -4,14 +4,23 @@ from shared import views as shared_views, utils as shared_utils
 from tickets import models as ticket_models, views as ticket_views
 from game_queue.start import init_queue, cleanup_queue
 from mailbox import models as mailbox_models, views as mailbox_views
+from human_resources import database as hr_database, utils as hr_utils
 
 
 def main():
+    first_time_setup = False
+    
     # Initialize databases
+    hardware_models.init_db()  # Initialize hardware catalog database  
+    if first_time_setup:
+        hardware_utils.migrate_hardware_catalog()  # Populate hardware catalog database
+    
     ticket_models.init_db()  # Initialize tickets database
-    hardware_models.init_db()  # Initialize hardware catalog database
-    hardware_utils.migrate_hardware_catalog()  # Populate hardware catalog database
     mailbox_models.init_db()  # Initialize mailbox database
+    
+    hr_database.init_db()  # Initialize human resources database
+    if first_time_setup:
+        hr_utils.migrate_employee_directory()  # Populate human resources database
     
     # Initialize queue system
     queue_manager = init_queue()
