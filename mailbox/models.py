@@ -1,12 +1,31 @@
 import sqlite3
 import os
 from datetime import datetime
+from human_resources.database import get_db_connection as get_hr_db_connection
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'mailbox.db')
 HR_DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'human_resources', 'hr.db')
 
 def init_db():
     """Initialize the mailbox database."""
+    # First ensure HR database exists and has data
+    hr_conn = get_hr_db_connection()
+    hr_cursor = hr_conn.cursor()
+    
+    # Check if employees table exists and has data
+    hr_cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='employees'")
+    if not hr_cursor.fetchone():
+        hr_conn.close()
+        raise Exception("HR database not initialized. Please run the game setup first.")
+    
+    hr_cursor.execute("SELECT COUNT(*) FROM employees")
+    if hr_cursor.fetchone()[0] == 0:
+        hr_conn.close()
+        raise Exception("No employees found in HR database. Please run the game setup first.")
+    
+    hr_conn.close()
+    
+    # Now initialize mailbox database
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -20,8 +39,8 @@ def init_db():
             content TEXT NOT NULL,
             timestamp DATETIME NOT NULL,
             is_read BOOLEAN NOT NULL DEFAULT 0,
-            FOREIGN KEY (sender_id) REFERENCES employee(id),
-            FOREIGN KEY (recipient_id) REFERENCES employee(id)
+            FOREIGN KEY (sender_id) REFERENCES employees(id),
+            FOREIGN KEY (recipient_id) REFERENCES employees(id)
         )
     ''')
     
@@ -39,18 +58,42 @@ def add_message(sender_id, recipient_id, subject, content):
         conn.commit()
 
 def get_messages(recipient_id):
-    """Get all messages for a recipient."""
+    """Get all messages for a recipient."""    
+    # Get messages from mailbox database
     with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
         cursor.execute('''
-            SELECT m.id, e.first_name || ' ' || e.last_name as sender_name, 
-                   m.subject, m.content, m.timestamp, m.is_read
-            FROM messages m
-            JOIN employee e ON m.sender_id = e.id
-            WHERE m.recipient_id = ?
-            ORDER BY m.timestamp DESC
+            SELECT id, sender_id, subject, content, timestamp, is_read
+            FROM messages
+            WHERE recipient_id = ?
+            ORDER BY timestamp DESC
         ''', (recipient_id,))
-        return cursor.fetchall()
+        messages = cursor.fetchall()
+    
+    # Get employee names from HR database
+    with sqlite3.connect(HR_DB_PATH) as hr_conn:
+        hr_cursor = hr_conn.cursor()
+        # Create a mapping of employee IDs to their full names
+        employee_names = {}
+        for msg in messages:
+            sender_id = msg[1]  # sender_id is the second column
+            if sender_id not in employee_names:
+                hr_cursor.execute('''
+                    SELECT first_name || ' ' || last_name
+                    FROM employees
+                    WHERE id = ?
+                ''', (sender_id,))
+                result = hr_cursor.fetchone()
+                employee_names[sender_id] = result[0] if result else "Unknown Sender"
+    
+    # Combine the data
+    formatted_messages = []
+    for msg in messages:
+        msg_id, sender_id, subject, content, timestamp, is_read = msg
+        sender_name = employee_names.get(sender_id, "Unknown Sender")
+        formatted_messages.append((msg_id, sender_name, subject, content, timestamp, is_read))
+    
+    return formatted_messages
 
 def mark_as_read(message_id):
     """Mark a message as read."""

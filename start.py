@@ -9,8 +9,7 @@ from mailbox import models as mailbox_models, views as mailbox_views
 from human_resources import database as hr_database, utils as hr_utils
 from game_calendar import models as calendar_models
 from player.repository import init_db as init_player_db
-from player.views import handle_first_time_setup
-from human_resources.repository import EmployeeRepository
+from player.utils import validate_player_setup
 
 
 def main():
@@ -22,32 +21,22 @@ def main():
         hardware_utils.migrate_hardware_catalog()  # Populate hardware catalog database
     
     ticket_models.init_db()  # Initialize tickets database
-    mailbox_models.init_db()  # Initialize mailbox database
     
+    # Initialize HR database first
     hr_database.init_db()  # Initialize human resources database
     if first_time_setup:
         hr_utils.migrate_employee_directory()  # Populate human resources database
     
+    # Initialize mailbox database after HR database
+    mailbox_models.init_db()  # Initialize mailbox database
+    
     calendar_models.init_db()  # Initialize calendar database
     init_player_db()  # Initialize player database
     
-    # Check if this is the first time running the game or if player is inactive
-    from player.repository import PlayerRepository
-    
-    players = PlayerRepository.get_all()
-    if not players:
-        if not handle_first_time_setup():
-            print("\nSetup failed. Please try again.")
-            return
-    else:
-        # Check if the player's employee record is active
-        current_player = players[0]  # Get the most recent player
-        if current_player.employee_id:
-            employee = EmployeeRepository.get_by_id(current_player.employee_id)
-            if not employee or employee.employment_status != 'active':
-                if not handle_first_time_setup():
-                    print("\nSetup failed. Please try again.")
-                    return
+    # Validate player setup
+    if not validate_player_setup():
+        print("\nSetup failed. Please try again.")
+        return
     
     # Initialize queue system
     queue_manager = init_queue()

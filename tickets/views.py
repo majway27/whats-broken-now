@@ -30,12 +30,8 @@ def tickets_management_menu():
         
         choice = input("\nEnter your choice (1-3, Q to return to main menu): ")
         
-        #if choice == '1':
-        #    check_new_tickets()
-        #elif choice == '2':
         if choice == '1':
             work_new_ticket()
-        #elif choice == '3':
         elif choice == '2':
             view_all_tickets()
         elif choice.upper() == 'Q':

@@ -4,6 +4,9 @@ from shared.common_ui import print_common_header
 from shared.rich_ui import print_status, print_info, print_error
 from datetime import datetime
 from human_resources.repository import EmployeeRepository
+from player.repository import PlayerRepository
+from player.models import Player
+from player.utils import validate_player_setup, validate_current_player
 
 def format_message_list(messages):
     """Format a list of messages for display."""
@@ -20,15 +23,21 @@ def show_mailbox_menu():
         clear_screen()
         print_common_header()
         
-        # Get current player's employee ID
-        current_player = EmployeeRepository.get_current_player()
-        if not current_player:
-            print_error("No active player found.")
+        # Validate player setup
+        if not validate_player_setup():
+            print_error("Player setup is invalid. Please run the game setup first.")
             input("Press Enter to continue...")
             return
         
-        # Get messages for the current player
-        messages = models.get_messages(current_player.id)
+        # Validate current player
+        is_valid, current_player = validate_current_player()
+        if not is_valid:
+            if not current_player:
+                print_error("No player found. Please run the game setup first.")
+            else:
+                print_error("Player is not associated with an employee record.")
+            input("Press Enter to continue...")
+            return
         
         menu_options = [
             "1. View Messages",
@@ -41,9 +50,9 @@ def show_mailbox_menu():
         choice = input("\nEnter your choice: ").upper()
         
         if choice == '1':
-            view_messages(current_player.id)
+            view_messages(current_player.employee_id)
         elif choice == '2':
-            send_message(current_player.id)
+            send_message(current_player.employee_id)
         elif choice == '3':
             delete_message()
         elif choice.upper() == 'Q':
@@ -83,13 +92,17 @@ def view_message(msg_id):
     clear_screen()
     print_common_header()
     
-    current_player = EmployeeRepository.get_current_player()
-    if not current_player:
-        print_error("No active player found.")
+    # Validate current player
+    is_valid, current_player = validate_current_player()
+    if not is_valid:
+        if not current_player:
+            print_error("No player found. Please run the game setup first.")
+        else:
+            print_error("Player is not associated with an employee record.")
         input("Press Enter to continue...")
         return
     
-    messages = models.get_messages(current_player.id)
+    messages = models.get_messages(current_player.employee_id)
     message = next((msg for msg in messages if msg[0] == msg_id), None)
     
     if not message:
@@ -170,13 +183,17 @@ def delete_message():
     clear_screen()
     print_common_header()
     
-    current_player = EmployeeRepository.get_current_player()
-    if not current_player:
-        print_error("No active player found.")
+    # Validate current player
+    is_valid, current_player = validate_current_player()
+    if not is_valid:
+        if not current_player:
+            print_error("No player found. Please run the game setup first.")
+        else:
+            print_error("Player is not associated with an employee record.")
         input("Press Enter to continue...")
         return
     
-    messages = models.get_messages(current_player.id)
+    messages = models.get_messages(current_player.employee_id)
     if not messages:
         print_info("No Messages", "Your mailbox is empty.")
         input("\nPress Enter to continue...")
@@ -201,4 +218,22 @@ def delete_message():
     except ValueError:
         print_error("Invalid message number.")
     
-    input("Press Enter to continue...") 
+    input("Press Enter to continue...")
+
+def show_mailbox():
+    """Show the player's mailbox with unread messages."""
+    # Validate player setup
+    if not validate_player_setup():
+        print_error("Player setup is invalid. Please run the game setup first.")
+        input("Press Enter to continue...")
+        return
+    
+    # Validate current player
+    is_valid, current_player = validate_current_player()
+    if not is_valid:
+        if not current_player:
+            print_error("No player found. Please run the game setup first.")
+        else:
+            print_error("Player is not associated with an employee record.")
+        input("Press Enter to continue...")
+        return 

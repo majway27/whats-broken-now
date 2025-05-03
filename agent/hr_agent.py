@@ -67,29 +67,40 @@ class HRAgent:
             
             # Get unread messages for HR
             logger.debug("Fetching unread messages for HR")
-            messages = mailbox_models.get_messages(self.email)
+            hr_manager = next((emp for emp in employees if emp.role_id == self.role.id), None)
+            if not hr_manager:
+                logger.error("No employee found with HR Manager role")
+                return
+                
+            messages = mailbox_models.get_messages(hr_manager.id)
             unread_messages = [msg for msg in messages if not msg[5]]  # msg[5] is is_read flag
             logger.info("Found %d unread messages", len(unread_messages))
 
             for msg in unread_messages:
-                msg_id, sender, subject, content, timestamp, _ = msg
-                logger.info("Processing message from %s: %s", sender, subject)
+                msg_id, sender_name, subject, content, timestamp, _ = msg
+                logger.info("Processing message from %s: %s", sender_name, subject)
+                
+                # Get sender's employee ID
+                sender_employee = next((emp for emp in employees if f"{emp.first_name} {emp.last_name}" == sender_name), None)
+                if not sender_employee:
+                    logger.error("Could not find employee record for sender: %s", sender_name)
+                    continue
                 
                 # Generate HR-appropriate response
                 logger.debug("Generating HR response for message ID: %s", msg_id)
-                response = self.generate_hr_response(sender, subject, content)
+                response = self.generate_hr_response(sender_name, subject, content)
                 if response:
-                    logger.debug("Sending response to %s", sender)
+                    logger.debug("Sending response to %s", sender_name)
                     mailbox_models.add_message(
-                        sender=self.email,
-                        recipient=sender,
-                        subject=f"Re: {subject}",
-                        content=response
+                        hr_manager.id,  # sender_id
+                        sender_employee.id,  # recipient_id
+                        f"Re: {subject}",  # subject
+                        response  # content
                     )
                     mailbox_models.mark_as_read(msg_id)
-                    logger.info("Successfully responded to message from %s", sender)
+                    logger.info("Successfully responded to message from %s", sender_name)
                 else:
-                    logger.warning("No response generated for message from %s", sender)
+                    logger.warning("No response generated for message from %s", sender_name)
 
         except Exception as e:
             logger.error("Error in HR agent check_messages: %s", str(e), exc_info=True)
@@ -128,28 +139,28 @@ class HRAgent:
             logger.info("Checking concerns for %d employees", len(employees))
             
             for employee in employees:
-                logger.debug("Checking concerns for employee: %s", employee.name)
+                logger.debug("Checking concerns for employee: %s %s", employee.first_name, employee.last_name)
                 # Check for any concerning patterns in employee data
                 if self._should_reach_out(employee):
-                    logger.info("Proactive outreach needed for employee: %s", employee.name)
+                    logger.info("Proactive outreach needed for employee: %s %s", employee.first_name, employee.last_name)
                     self._generate_proactive_outreach(employee)
                 else:
-                    logger.debug("No concerns detected for employee: %s", employee.name)
+                    logger.debug("No concerns detected for employee: %s %s", employee.first_name, employee.last_name)
                     
         except Exception as e:
             logger.error("Error in handle_employee_concerns: %s", str(e), exc_info=True)
 
     def _should_reach_out(self, employee):
         """Determine if HR should proactively reach out to an employee."""
-        logger.debug("Evaluating if outreach needed for employee: %s", employee.name)
+        logger.debug("Evaluating if outreach needed for employee: %s %s", employee.first_name, employee.last_name)
         # This would implement logic to determine if an employee needs HR attention
         # For now, return False as a placeholder
         return False
 
     def _generate_proactive_outreach(self, employee):
         """Generate a proactive outreach message to an employee."""
-        logger.info("Generating proactive outreach for employee: %s", employee.name)
-        prompt = f"""As an HR Manager, create a supportive outreach message to {employee.name} about:
+        logger.info("Generating proactive outreach for employee: %s %s", employee.first_name, employee.last_name)
+        prompt = f"""As an HR Manager, create a supportive outreach message to {employee.first_name} {employee.last_name} about:
         - Checking in on their well-being
         - Offering support and resources
         - Maintaining confidentiality
@@ -167,7 +178,7 @@ class HRAgent:
                 subject="HR Check-in",
                 content=response.text()
             )
-            logger.info("Sent proactive outreach to employee: %s", employee.name)
+            logger.info("Sent proactive outreach to employee: %s %s", employee.first_name, employee.last_name)
         except Exception as e:
             logger.error("Error generating proactive outreach: %s", str(e), exc_info=True)
 

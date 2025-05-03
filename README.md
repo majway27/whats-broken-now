@@ -70,3 +70,7 @@
 - [Office Space](https://www.imdb.com/title/tt0151804)
 - [Saboteur](https://www.imdb.com/title/tt0035279/)
 - [Lotus Notes](https://www.theregister.com/2024/01/19/remembering_lotus_notes/)
+
+## Reminders
+
+- The models.py should focus on data structures, while utils.py is better for business logic (ie setup and validation).
