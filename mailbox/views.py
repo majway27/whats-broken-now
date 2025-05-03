@@ -9,9 +9,9 @@ def format_message_list(messages):
     """Format a list of messages for display."""
     formatted_messages = []
     for msg in messages:
-        msg_id, sender, subject, _, timestamp, is_read = msg
+        msg_id, sender_name, subject, _, timestamp, is_read = msg
         status = "📬" if not is_read else "📭"
-        formatted_messages.append(f"{status} {msg_id}. From: {sender} - {subject} ({timestamp})")
+        formatted_messages.append(f"{status} {msg_id}. From: {sender_name} - {subject} ({timestamp})")
     return formatted_messages
 
 def show_mailbox_menu():
@@ -20,8 +20,15 @@ def show_mailbox_menu():
         clear_screen()
         print_common_header()
         
-        # Get messages for the current user (using a default user for now)
-        messages = models.get_messages("player")
+        # Get current player's employee ID
+        current_player = EmployeeRepository.get_current_player()
+        if not current_player:
+            print_error("No active player found.")
+            input("Press Enter to continue...")
+            return
+        
+        # Get messages for the current player
+        messages = models.get_messages(current_player.id)
         
         menu_options = [
             "1. View Messages",
@@ -34,9 +41,9 @@ def show_mailbox_menu():
         choice = input("\nEnter your choice: ").upper()
         
         if choice == '1':
-            view_messages()
+            view_messages(current_player.id)
         elif choice == '2':
-            send_message()
+            send_message(current_player.id)
         elif choice == '3':
             delete_message()
         elif choice.upper() == 'Q':
@@ -46,12 +53,12 @@ def show_mailbox_menu():
             print_error("Invalid choice. Please try again.")
             input("Press Enter to continue...")
 
-def view_messages():
+def view_messages(player_id):
     """View all messages."""
     clear_screen()
     print_common_header()
     
-    messages = models.get_messages("player")
+    messages = models.get_messages(player_id)
     if not messages:
         print_info("No Messages", "Your mailbox is empty.")
         input("\nPress Enter to continue...")
@@ -76,7 +83,13 @@ def view_message(msg_id):
     clear_screen()
     print_common_header()
     
-    messages = models.get_messages("player")
+    current_player = EmployeeRepository.get_current_player()
+    if not current_player:
+        print_error("No active player found.")
+        input("Press Enter to continue...")
+        return
+    
+    messages = models.get_messages(current_player.id)
     message = next((msg for msg in messages if msg[0] == msg_id), None)
     
     if not message:
@@ -84,11 +97,11 @@ def view_message(msg_id):
         input("Press Enter to continue...")
         return
     
-    _, sender, subject, content, timestamp, _ = message
+    _, sender_name, subject, content, timestamp, _ = message
     models.mark_as_read(msg_id)
     
     print_info("Message Details", f"""
-        From: {sender}
+        From: {sender_name}
         Subject: {subject}
         Date: {timestamp}
 
@@ -106,7 +119,7 @@ def select_recipient():
     
     print("\nSelect a recipient:")
     for i, emp in enumerate(employees, 1):
-        print(f"{i}. {emp.first_name} {emp.last_name} ({emp.email})")
+        print(f"{i}. {emp.first_name} {emp.last_name}")
     
     while True:
         try:
@@ -116,20 +129,20 @@ def select_recipient():
             
             index = int(choice) - 1
             if 0 <= index < len(employees):
-                return employees[index].email
+                return employees[index].id
             else:
                 print_error("Invalid selection. Please try again.")
         except ValueError:
             print_error("Please enter a valid number.")
 
-def send_message():
+def send_message(sender_id):
     """Send a new message."""
     clear_screen()
     print_common_header()
     
     print_info("Send Message", "Enter message details:")
-    recipient = select_recipient()
-    if not recipient:
+    recipient_id = select_recipient()
+    if not recipient_id:
         return
     
     subject = input("Subject: ")
@@ -144,8 +157,8 @@ def send_message():
     
     content = "\n".join(content_lines[:-1])  # Remove the last empty line
     
-    if recipient and subject and content:
-        models.add_message("player", recipient, subject, content)
+    if recipient_id and subject and content:
+        models.add_message(sender_id, recipient_id, subject, content)
         print_status("Message Status", "Message sent successfully!")
     else:
         print_error("Message not sent. All fields are required.")
@@ -157,7 +170,13 @@ def delete_message():
     clear_screen()
     print_common_header()
     
-    messages = models.get_messages("player")
+    current_player = EmployeeRepository.get_current_player()
+    if not current_player:
+        print_error("No active player found.")
+        input("Press Enter to continue...")
+        return
+    
+    messages = models.get_messages(current_player.id)
     if not messages:
         print_info("No Messages", "Your mailbox is empty.")
         input("\nPress Enter to continue...")

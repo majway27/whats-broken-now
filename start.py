@@ -3,8 +3,8 @@ from hardware import models as hardware_models, utils as hardware_utils
 from shared import views as shared_views, utils as shared_utils
 from tickets import models as ticket_models, views as ticket_views
 from game_queue.start import init_queue, cleanup_queue
-from game_queue.role_agents import init_role_agents, cleanup_role_agents
-from game_queue.hr_agent import init_hr_agent, cleanup_hr_agent
+from agent.role_agents import init_role_agents, cleanup_role_agents
+from agent.hr_agent import init_hr_agent, cleanup_hr_agent
 from mailbox import models as mailbox_models, views as mailbox_views
 from human_resources import database as hr_database, utils as hr_utils
 from game_calendar import models as calendar_models

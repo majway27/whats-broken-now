@@ -68,6 +68,22 @@ class EmployeeRepository:
         )
 
     @staticmethod
+    def get_current_player() -> Optional[Employee]:
+        """Get the current player's employee record."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        # Get the most recently created active employee
+        cursor.execute('''
+            SELECT * FROM employees 
+            WHERE employment_status = 'active'
+            ORDER BY created_at DESC 
+            LIMIT 1
+        ''')
+        row = cursor.fetchone()
+        conn.close()
+        return Employee.from_db_row(row) if row else None
+
+    @staticmethod
     def get_by_id(employee_id: int) -> Optional[Employee]:
         conn = get_db_connection()
         cursor = conn.cursor()
