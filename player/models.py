@@ -35,4 +35,11 @@ class Player:
             return ""
         from human_resources.repository import EmployeeRepository
         employee = EmployeeRepository.get_by_id(self.employee_id)
-        return f"{employee.first_name} {employee.last_name}" if employee else "" 
+        return f"{employee.first_name} {employee.last_name}" if employee else ""
+
+    def mark_as_inactive(self) -> bool:
+        """Marks the player as inactive by clearing their employee_id."""
+        if not self.id:
+            return False
+        from .repository import PlayerRepository
+        return PlayerRepository.update_employee_id(self.id, None) 

@@ -3,7 +3,7 @@ from shared import views as shared_views
 from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
 from shared.rich_ui import print_status, print_info, print_error, print_table
-from rich.console import Console
+
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -179,10 +179,8 @@ def view_all_tickets():
 def check_new_tickets():
     """Check for new tickets and display the result."""
     clear_screen()
-    console = Console()
     
-    with console.status("[bold yellow]Checking for new tickets...", spinner="dots") as status:
-        new_ticket = models.check_new_tickets()
+    new_ticket = models.check_new_tickets()
     
     if new_ticket:
         print_info("New Ticket Found", f"New ticket found: {new_ticket['id']}")

@@ -10,6 +10,7 @@ from human_resources import database as hr_database, utils as hr_utils
 from game_calendar import models as calendar_models
 from player.repository import init_db as init_player_db
 from player.utils import validate_player_setup
+from rich.console import Console
 
 
 def main():
@@ -57,12 +58,14 @@ def main():
         print(f"\nAn error occurred: {e}")
         input("Press Enter to continue...")
     finally:
-        # Clean up queue system
-        cleanup_queue()
-        # Clean up role agents
-        #cleanup_role_agents()
-        # Clean up HR agent
-        cleanup_hr_agent(hr_agent)
+        console = Console()
+        with console.status("[bold dark_sea_green]Saving game, don't turn off your computer..", spinner="dots") as status:
+            # Clean up queue system
+            cleanup_queue()
+            # Clean up role agents
+            #cleanup_role_agents()
+            # Clean up HR agent
+            cleanup_hr_agent(hr_agent)
 
 if __name__ == "__main__":
     main() 

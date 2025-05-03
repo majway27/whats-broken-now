@@ -45,8 +45,7 @@ def show_main_menu():
         # Advance the day
         current_day = calendar_models.get_current_game_day()
         new_day = calendar_models.advance_game_day()
-        print(f"\nAdvanced from Day {current_day} to Day {new_day}")
-        print("\nLogging out... Goodbye!")
+        print_info("System", f"Advanced Day (Game): [bold dark_goldenrod]{current_day}[/] -> [bold sea_green2]{new_day}[/]")
         return True
     else:
         print("\nInvalid choice. Please try again.")

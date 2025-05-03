@@ -65,17 +65,14 @@ def handle_player_quit_job():
                 
             current_player = players[0]  # Get the first player (should be the active one)
             
-            # Mark employee as inactive
-            if current_player.employee_id:
-                EmployeeRepository.update_employment_status(current_player.employee_id, 'inactive')
-                print_status("Success", "You have been marked as inactive. Goodbye!")
-                print_info("Exiting", "Thank you for playing Whats Broken Now!")
-                input("\nPress Enter to exit...")
-                sys.exit(0)  # Exit the game completely
-            else:
-                print_error("Error", "No employee record found for current player.")
-                input("\nPress Enter to continue...")
-                return False
+            # Mark employee as inactive in HR system
+            EmployeeRepository.update_employment_status(current_player.employee_id, 'inactive')
+            # Mark player as inactive in player system
+            current_player.mark_as_inactive()
+            print_status("Success", "You have been marked as inactive. Goodbye!")
+            print_info("Exiting", "Thank you for playing Whats Broken Now!")
+            input("\nPress Enter to exit...")
+            sys.exit(0)  # Exit the game completely
                 
         except Exception as e:
             print_error("Error", f"An error occurred while quitting: {str(e)}")
