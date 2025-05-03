@@ -20,6 +20,16 @@ def init_db():
         )
     ''')
     
+    # Create current_game_day table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS current_game_day (
+            id INTEGER PRIMARY KEY CHECK (id = 1),
+            game_day_id INTEGER NOT NULL,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (game_day_id) REFERENCES game_days (id)
+        )
+    ''')
+    
     # Create schedule table
     c.execute('''
         CREATE TABLE IF NOT EXISTS schedule (
@@ -45,6 +55,17 @@ def init_db():
         )
     ''')
     
+    # Initialize current_game_day if empty
+    c.execute('SELECT COUNT(*) FROM current_game_day')
+    if c.fetchone()[0] == 0:
+        # Insert day 1 into game_days if it doesn't exist
+        c.execute('INSERT OR IGNORE INTO game_days (day_number) VALUES (1)')
+        # Get the id of day 1
+        c.execute('SELECT id FROM game_days WHERE day_number = 1')
+        day1_id = c.fetchone()[0]
+        # Set it as current day
+        c.execute('INSERT INTO current_game_day (id, game_day_id) VALUES (1, ?)', (day1_id,))
+    
     conn.commit()
     conn.close()
 
@@ -60,6 +81,11 @@ def reset_game_days():
     
     # Insert day 1
     c.execute('INSERT INTO game_days (day_number) VALUES (1)')
+    day1_id = c.lastrowid
+    
+    # Reset current game day to day 1
+    c.execute('DELETE FROM current_game_day')
+    c.execute('INSERT INTO current_game_day (id, game_day_id) VALUES (1, ?)', (day1_id,))
     
     conn.commit()
     conn.close()
@@ -69,11 +95,15 @@ def get_current_game_day() -> int:
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    c.execute('SELECT MAX(day_number) FROM game_days')
+    c.execute('''
+        SELECT g.day_number 
+        FROM current_game_day c
+        JOIN game_days g ON c.game_day_id = g.id
+    ''')
     result = c.fetchone()[0]
     
     conn.close()
-    return result if result is not None else 1
+    return result
 
 def advance_game_day() -> int:
     """Advance the game day by one and return the new day number."""
@@ -83,7 +113,18 @@ def advance_game_day() -> int:
     current_day = get_current_game_day()
     new_day = current_day + 1
     
-    c.execute('INSERT INTO game_days (day_number) VALUES (?)', (new_day,))
+    try:
+        # Try to insert the new day
+        c.execute('INSERT INTO game_days (day_number) VALUES (?)', (new_day,))
+        new_day_id = c.lastrowid
+    except sqlite3.IntegrityError:
+        # If the day already exists, get its id
+        conn.rollback()
+        c.execute('SELECT id FROM game_days WHERE day_number = ?', (new_day,))
+        new_day_id = c.fetchone()[0]
+    
+    # Update current_game_day to point to the new day
+    c.execute('UPDATE current_game_day SET game_day_id = ?, updated_at = CURRENT_TIMESTAMP', (new_day_id,))
     conn.commit()
     conn.close()
     
@@ -92,26 +133,56 @@ def advance_game_day() -> int:
 def is_valid_scheduling_day(game_day: int) -> bool:
     """Check if the given game day is valid for scheduling meetings."""
     current_day = get_current_game_day()
-    return game_day == current_day + 1
+    return game_day > current_day
 
-def add_meeting(title: str, description: str, start_time: str, end_time: str, game_day: int, employee_ids: List[int]) -> bool:
+def add_meeting(title: str, description: str, start_time: str, end_time: str, employee_ids: List[int], game_day: Optional[int] = None) -> bool:
     """Add a new meeting to the schedule with attendees."""
+    if game_day is None:
+        game_day = get_current_game_day() + 1
+        
     if not is_valid_scheduling_day(game_day):
+        return False
+    
+    # Validate that all employees are active and not the current player
+    from player.models import Player
+    current_player = Player.get_most_recent()
+    current_employee_id = current_player.employee_id if current_player else None
+    
+    if current_employee_id and current_employee_id in employee_ids:
+        return False
+    
+    hr_conn = get_hr_db_connection()
+    hr_cursor = hr_conn.cursor()
+    
+    placeholders = ','.join('?' * len(employee_ids))
+    hr_cursor.execute(f'''
+        SELECT id 
+        FROM employees 
+        WHERE id IN ({placeholders}) AND employment_status = 'active'
+    ''', employee_ids)
+    
+    active_employee_ids = [row['id'] for row in hr_cursor.fetchall()]
+    hr_conn.close()
+    
+    if len(active_employee_ids) != len(employee_ids):
         return False
         
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
     try:
-        # Get or create game day
-        c.execute('SELECT id FROM game_days WHERE day_number = ?', (game_day,))
-        result = c.fetchone()
+        # Get current max day
+        c.execute('SELECT MAX(day_number) FROM game_days')
+        current_max_day = c.fetchone()[0] or 0
         
-        if result is None:
-            c.execute('INSERT INTO game_days (day_number) VALUES (?)', (game_day,))
-            game_day_id = c.lastrowid
-        else:
-            game_day_id = result[0]
+        # If target day is beyond current max, add all missing days
+        if game_day > current_max_day:
+            for day in range(current_max_day + 1, game_day + 1):
+                c.execute('INSERT INTO game_days (day_number) VALUES (?)', (day,))
+        
+        # Get the game day ID for the target day
+        c.execute('SELECT id FROM game_days WHERE day_number = ?', (game_day,))
+        game_day_id = c.fetchone()[0]
         
         # Add meeting
         c.execute('''
@@ -279,11 +350,32 @@ def get_meeting(meeting_id: int) -> Optional[Tuple]:
     return meeting + (attendee_ids_str, attendee_names_str)
 
 def get_available_employees() -> List[Tuple]:
-    """Get list of all available employees from HR database."""
+    """Get list of all available active employees from HR database, excluding the current player."""
+    from player.models import Player
+    
+    # Get current player's employee ID
+    current_player = Player.get_most_recent()
+    current_employee_id = current_player.employee_id if current_player else None
+    
     conn = get_hr_db_connection()
     c = conn.cursor()
     
-    c.execute('SELECT id, first_name, last_name FROM employees ORDER BY first_name, last_name')
+    if current_employee_id:
+        c.execute('''
+            SELECT id, first_name, last_name 
+            FROM employees 
+            WHERE employment_status = 'active'
+            AND id != ?
+            ORDER BY first_name, last_name
+        ''', (current_employee_id,))
+    else:
+        c.execute('''
+            SELECT id, first_name, last_name 
+            FROM employees 
+            WHERE employment_status = 'active'
+            ORDER BY first_name, last_name
+        ''')
+    
     employees = [(row['id'], f"{row['first_name']} {row['last_name']}") for row in c.fetchall()]
     conn.close()
     

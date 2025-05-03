@@ -26,9 +26,16 @@ def init_db():
             email TEXT UNIQUE NOT NULL,
             employee_id INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            days_survived INTEGER DEFAULT 0,
             FOREIGN KEY (employee_id) REFERENCES employees (id)
         )
     ''')
+    
+    # Check if days_survived column exists, if not add it
+    cursor.execute("PRAGMA table_info(players)")
+    columns = [column[1] for column in cursor.fetchall()]
+    if 'days_survived' not in columns:
+        cursor.execute('ALTER TABLE players ADD COLUMN days_survived INTEGER DEFAULT 0')
     
     conn.commit()
     conn.close()
@@ -103,6 +110,20 @@ class PlayerRepository:
         cursor.execute(
             'UPDATE players SET employee_id = ? WHERE id = ?',
             (employee_id, player_id)
+        )
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+
+    @staticmethod
+    def update_days_survived(player_id: int, days: int) -> bool:
+        """Update a player's days survived count."""
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            'UPDATE players SET days_survived = ? WHERE id = ?',
+            (days, player_id)
         )
         success = cursor.rowcount > 0
         conn.commit()

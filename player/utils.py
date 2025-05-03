@@ -1,6 +1,7 @@
 from .models import Player
 from .views import handle_first_time_setup
 from human_resources.repository import EmployeeRepository
+from game_calendar.models import get_current_game_day
 
 def validate_player_setup() -> bool:
     """
@@ -19,6 +20,11 @@ def validate_player_setup() -> bool:
         employee = EmployeeRepository.get_by_id(current_player.employee_id)
         if not employee or employee.employment_status != 'active':
             return handle_first_time_setup()
+        
+        # Update days survived based on current game day
+        current_day = get_current_game_day()
+        if current_day > current_player.days_survived:
+            PlayerRepository.update_days_survived(current_player.id, current_day)
             
     return True
 

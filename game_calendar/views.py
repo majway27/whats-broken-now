@@ -107,12 +107,25 @@ def add_meeting(game_day: int):
     clear_screen()
     print_common_header()
     
-    if not models.is_valid_scheduling_day(game_day):
-        print_error(f"Cannot schedule meetings for Day {game_day}. Meetings can only be scheduled for Day {models.get_current_game_day() + 1}.")
+    current_day = models.get_current_game_day()
+    print_info("Add Meeting", f"Current game day is {current_day}")
+    
+    while True:
+        try:
+            target_day = int(input(f"Enter day to schedule meeting (must be > {current_day}): "))
+            if target_day <= current_day:
+                print_error(f"Meeting must be scheduled for a day after {current_day}")
+                continue
+            break
+        except ValueError:
+            print_error("Please enter a valid day number")
+    
+    if not models.is_valid_scheduling_day(target_day):
+        print_error(f"Cannot schedule meetings for Day {target_day}. Meetings can only be scheduled for future days.")
         input("\nPress Enter to continue...")
         return
     
-    print_info("Add Meeting", f"Adding meeting for Day {game_day}")
+    print_info("Add Meeting", f"Adding meeting for Day {target_day}")
     
     title = input("Meeting Title: ")
     description = input("Description (optional): ")
@@ -136,7 +149,7 @@ def add_meeting(game_day: int):
         input("\nPress Enter to continue...")
         return
     
-    if models.add_meeting(title, description, start_time, end_time, game_day, employee_ids):
+    if models.add_meeting(title, description, start_time, end_time, employee_ids, target_day):
         print_status("Success", "Meeting added successfully!")
     else:
         print_error("Failed to add meeting.")
