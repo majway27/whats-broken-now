@@ -3,7 +3,7 @@ from shared import views as shared_views
 from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
 from shared.rich_ui import print_status, print_info, print_error, print_table
-from human_resources import models as hr_models
+from human_resources.repository import EmployeeRepository
 
 
 def clear_screen():
@@ -62,7 +62,7 @@ def show_ticket_interaction(ticket):
 
         # Get current assignee
         assignee = models.get_ticket_assignee(ticket['id'])
-        current_employee = hr_models.get_current_employee()
+        current_employee = EmployeeRepository.get_current_player()
 
         # Display ticket information
         ticket_info = f"Title: {ticket['title']}\n"

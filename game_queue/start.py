@@ -2,7 +2,6 @@ import os
 import sys
 import logging
 from .simple_queue import GameEventQueue
-from .ticket_queue import TicketQueueJob
 import threading
 import time
 import queue as thread_queue
@@ -45,7 +44,6 @@ class QueueManager:
         self.running = False
         self._initialized = True
         self.event_queue = thread_queue.Queue()  # Thread-safe queue for event processing
-        self.ticket_queue_job = None
 
     def process_events(self):
         """Background thread to process events."""
@@ -102,7 +100,7 @@ class QueueManager:
             logger.error(f"Error handling event {event_type}: {e}")
 
     def start(self):
-        """Start the queue processor and ticket queue job."""
+        """Start the queue processor."""
         if self.processor_thread is not None:
             logger.warning("Queue processor is already running")
             return
@@ -112,13 +110,8 @@ class QueueManager:
         self.processor_thread.start()
         logger.info("Queue processor started")
 
-        # Start the ticket queue job
-        self.ticket_queue_job = TicketQueueJob()
-        self.ticket_queue_job.start()
-        logger.info("Ticket queue job started")
-
     def stop(self):
-        """Stop the queue processor and ticket queue job."""
+        """Stop the queue processor."""
         if self.processor_thread is None:
             logger.warning("Queue processor is not running")
             return
@@ -132,12 +125,6 @@ class QueueManager:
         self.processor_thread.join(timeout=1)  # Wait up to 1 second for thread to finish
         self.processor_thread = None
         logger.info("Queue processor stopped")
-
-        # Stop the ticket queue job
-        if self.ticket_queue_job:
-            self.ticket_queue_job.stop()
-            self.ticket_queue_job = None
-            logger.info("Ticket queue job stopped")
 
     def add_event(self, event_type: str, data: dict, priority: int = 0) -> int:
         """Add a new event to the queue."""
