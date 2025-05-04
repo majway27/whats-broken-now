@@ -7,13 +7,14 @@ from . import utils
 # Get the directory where this module is located
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(MODULE_DIR, 'tickets.db')
+HR_DB_PATH = os.path.join(MODULE_DIR, '..', 'hr', 'hr.db')
 
 def init_db():
     """Initialize the tickets database."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Create tickets table
+    # Create tickets table with assignee field
     c.execute('''CREATE TABLE IF NOT EXISTS tickets
                  (id TEXT PRIMARY KEY,
                   title TEXT,
@@ -22,9 +23,10 @@ def init_db():
                   hardware_name TEXT,
                   hardware_model TEXT,
                   hardware_manufacturer TEXT,
-                  created_at TIMESTAMP)''')
+                  created_at TIMESTAMP,
+                  assignee_id INTEGER)''')
     
-    # Create ticket history table
+    # Create ticket history table with assignee tracking
     c.execute('''CREATE TABLE IF NOT EXISTS ticket_history
                  (audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
                   ticket_id TEXT,
@@ -36,6 +38,7 @@ def init_db():
                   hardware_manufacturer TEXT,
                   comment TEXT,
                   changed_at TIMESTAMP,
+                  assignee_id INTEGER,
                   FOREIGN KEY (ticket_id) REFERENCES tickets(id))''')
     
     conn.commit()
@@ -261,3 +264,128 @@ def check_new_tickets():
                     return new_ticket
         conn.close()
     return None 
+
+def assign_ticket(ticket_id, employee_id):
+    """Assign a ticket to an IT specialist."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Update ticket assignee
+    c.execute("UPDATE tickets SET assignee_id = ? WHERE id = ?", 
+             (employee_id, ticket_id))
+    
+    # Record the change in history
+    c.execute("""
+        SELECT title, status, description, hardware_name, hardware_model, hardware_manufacturer
+        FROM tickets
+        WHERE id = ?
+    """, (ticket_id,))
+    
+    ticket_data = c.fetchone()
+    if ticket_data:
+        c.execute("""
+            INSERT INTO ticket_history 
+            (ticket_id, title, status, description, hardware_name, hardware_model, 
+             hardware_manufacturer, comment, changed_at, assignee_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (ticket_id, *ticket_data, f"Ticket assigned to employee {employee_id}", 
+              datetime.now(), employee_id))
+    
+    conn.commit()
+    conn.close()
+
+def unassign_ticket(ticket_id):
+    """Remove assignment from a ticket."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Get current assignee before unassigning
+    c.execute("SELECT assignee_id FROM tickets WHERE id = ?", (ticket_id,))
+    current_assignee = c.fetchone()[0]
+    
+    # Update ticket assignee to NULL
+    c.execute("UPDATE tickets SET assignee_id = NULL WHERE id = ?", (ticket_id,))
+    
+    # Record the change in history
+    c.execute("""
+        SELECT title, status, description, hardware_name, hardware_model, hardware_manufacturer
+        FROM tickets
+        WHERE id = ?
+    """, (ticket_id,))
+    
+    ticket_data = c.fetchone()
+    if ticket_data:
+        c.execute("""
+            INSERT INTO ticket_history 
+            (ticket_id, title, status, description, hardware_name, hardware_model, 
+             hardware_manufacturer, comment, changed_at, assignee_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (ticket_id, *ticket_data, f"Ticket unassigned from employee {current_assignee}", 
+              datetime.now(), None))
+    
+    conn.commit()
+    conn.close()
+
+def get_ticket_assignee(ticket_id):
+    """Get the current assignee of a ticket."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # First get the assignee_id from tickets table
+    c.execute("SELECT assignee_id FROM tickets WHERE id = ?", (ticket_id,))
+    assignee_id = c.fetchone()
+    
+    if not assignee_id or not assignee_id[0]:
+        conn.close()
+        return None
+        
+    # Then get employee details from HR database
+    hr_conn = sqlite3.connect(HR_DB_PATH)
+    hr_cursor = hr_conn.cursor()
+    
+    hr_cursor.execute("""
+        SELECT id, name, email
+        FROM employees
+        WHERE id = ?
+    """, (assignee_id[0],))
+    
+    assignee = hr_cursor.fetchone()
+    hr_conn.close()
+    conn.close()
+    
+    if assignee:
+        return {
+            "id": assignee[0],
+            "name": assignee[1],
+            "email": assignee[2]
+        }
+    return None
+
+def get_assigned_tickets(employee_id):
+    """Get all tickets assigned to a specific employee."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    c.execute("""
+        SELECT id, title, status, description, hardware_name, hardware_model, 
+               hardware_manufacturer, created_at
+        FROM tickets
+        WHERE assignee_id = ?
+        ORDER BY created_at DESC
+    """, (employee_id,))
+    
+    tickets = [{
+        "id": row[0],
+        "title": row[1],
+        "status": row[2],
+        "description": row[3],
+        "hardware": {
+            "name": row[4],
+            "model": row[5],
+            "manufacturer": row[6]
+        },
+        "created_at": row[7]
+    } for row in c.fetchall()]
+    
+    conn.close()
+    return tickets 

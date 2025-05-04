@@ -1,17 +1,44 @@
-from admin import views as admin_views
+import os
+
 from hardware import models as hardware_models, utils as hardware_utils
-from shared import views as shared_views, utils as shared_utils
-from tickets import models as ticket_models, views as ticket_views
-from game_queue.start import init_queue, cleanup_queue
-from agent.role_agents import init_role_agents, cleanup_role_agents
-from agent.hr_agent import init_hr_agent, cleanup_hr_agent
-from mailbox import models as mailbox_models, views as mailbox_views
+from shared import views as shared_views
+from tickets import models as ticket_models
+from mailbox import models as mailbox_models
 from human_resources import database as hr_database, utils as hr_utils
 from game_calendar import models as calendar_models
+
 from player.repository import init_db as init_player_db
 from player.utils import validate_player_setup
+
+from game_queue.start import init_queue, cleanup_queue
+from agent.hr.hr_agent import HRAgent
+
 from rich.console import Console
 
+
+def init_hr_agent():
+    """Initialize and start the HR agent."""
+    try:
+        # Ensure the config directory exists
+        config_dir = os.path.join('agent', 'hr', 'config')
+        os.makedirs(config_dir, exist_ok=True)
+        
+        # Initialize the HR agent with the new architecture
+        agent = HRAgent()
+        agent.initialize()
+        agent.start()
+        return agent
+    except Exception as e:
+        print(f"Error initializing HR agent: {e}")
+        return None
+
+def cleanup_hr_agent(agent):
+    """Clean up the HR agent."""
+    if agent:
+        try:
+            agent.stop()
+        except Exception as e:
+            print(f"Error cleaning up HR agent: {e}")
 
 def main():
     first_time_setup = False
@@ -42,11 +69,11 @@ def main():
     # Initialize queue system
     queue_manager = init_queue()
     
-    # Initialize role agents
-    #role_agent_manager = init_role_agents()
     
-    # Initialize HR agent
+    # Initialize HR agent with new architecture
     hr_agent = init_hr_agent()
+    if not hr_agent:
+        print("\nFailed to initialize HR agent. Continuing without HR functionality.")
     
     try:
         while True:
@@ -61,11 +88,12 @@ def main():
         console = Console()
         with console.status("[bold dark_sea_green]Saving game, don't turn off your computer..", spinner="dots") as status:
             # Clean up queue system
-            cleanup_queue()
-            # Clean up role agents
-            #cleanup_role_agents()
+            #cleanup_queue()
+            # Role agents temporarily disabled during refactoring
+            # cleanup_role_agents()
             # Clean up HR agent
-            cleanup_hr_agent(hr_agent)
+            #cleanup_hr_agent(hr_agent)
+            pass
 
 if __name__ == "__main__":
     main() 

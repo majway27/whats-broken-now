@@ -3,6 +3,7 @@ from shared import views as shared_views
 from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
 from shared.rich_ui import print_status, print_info, print_error, print_table
+from human_resources import models as hr_models
 
 
 def clear_screen():
@@ -21,7 +22,6 @@ def tickets_management_menu():
         print_status_pane()
         
         menu_options = [
-            #"1. Check for new tickets",
             "1. Work on active ticket",
             "2. View all tickets",
             "Q. Return to main menu"
@@ -60,10 +60,18 @@ def show_ticket_interaction(ticket):
         # Display common header
         print_common_header()
 
+        # Get current assignee
+        assignee = models.get_ticket_assignee(ticket['id'])
+        current_employee = hr_models.get_current_employee()
+
         # Display ticket information
         ticket_info = f"Title: {ticket['title']}\n"
-        ticket_info += f"Status: {ticket['status']}\n\n"
-        ticket_info += f"Hardware Details:\n"
+        ticket_info += f"Status: {ticket['status']}\n"
+        if assignee:
+            ticket_info += f"Assigned to: {assignee['name']} ({assignee['email']})\n"
+        else:
+            ticket_info += "Assigned to: Unassigned\n"
+        ticket_info += f"\nHardware Details:\n"
         ticket_info += f"  Name: {ticket['hardware']['name']}\n"
         ticket_info += f"  Model: {ticket['hardware']['model']}\n"
         ticket_info += f"  Manufacturer: {ticket['hardware']['manufacturer']}\n\n"
@@ -76,13 +84,15 @@ def show_ticket_interaction(ticket):
         if not history:
             print_info("Recent History", "No history found for this ticket.")
         else:
-            headers = ["Time", "Status", "Comment"]
+            headers = ["Time", "Status", "Assignee", "Comment"]
             rows = []
             for entry in history[:2]:  # Get only the two most recent entries
                 comment = entry['comment'] if entry['comment'] else "Status changed"
+                assignee_name = entry.get('assignee_name', 'Unassigned')
                 rows.append([
                     entry['changed_at'],
                     entry['status'],
+                    assignee_name,
                     comment
                 ])
             print_table("Recent Activity (Last Two Entries)", headers, rows)
@@ -91,12 +101,20 @@ def show_ticket_interaction(ticket):
         options = [
             "1. Update ticket status",
             "2. Add comment",
-            "3. View full ticket history",
-            "Q. Return to ticket selection"
+            "3. View full ticket history"
         ]
+        
+        # Add assignment options based on current state
+        if assignee and assignee['id'] == current_employee['id']:
+            options.append("4. Unassign ticket from myself")
+        elif not assignee:
+            options.append("4. Assign ticket to myself")
+            
+        options.append("Q. Return to ticket selection")
+        
         print_menu("Options", options)
 
-        choice = input("\nEnter your choice (1-3, Q to return to ticket selection): ")
+        choice = input("\nEnter your choice: ")
         
         if choice == '1':
             update_ticket_status(ticket)
@@ -104,6 +122,14 @@ def show_ticket_interaction(ticket):
             add_ticket_comment(ticket)
         elif choice == '3':
             view_ticket_history(ticket)
+        elif choice == '4':
+            if assignee and assignee['id'] == current_employee['id']:
+                models.unassign_ticket(ticket['id'])
+                print_info("Success", "Ticket unassigned successfully.")
+            elif not assignee:
+                models.assign_ticket(ticket['id'], current_employee['id'])
+                print_info("Success", "Ticket assigned to you successfully.")
+            input("Press Enter to continue...")
         elif choice.upper() == 'Q':
             clear_screen()
             return
@@ -198,13 +224,15 @@ def view_ticket_history(ticket):
     if not history:
         print_info("Ticket History", "No history found for this ticket.")
     else:
-        headers = ["Time", "Status", "Comment"]
+        headers = ["Time", "Status", "Assignee", "Comment"]
         rows = []
         for entry in history:
             comment = entry['comment'] if entry['comment'] else "Status changed"
+            assignee_name = entry.get('assignee_name', 'Unassigned')
             rows.append([
                 entry['changed_at'],
                 entry['status'],
+                assignee_name,
                 comment
             ])
         print_table(f"History for Ticket: {ticket['id']}", headers, rows)

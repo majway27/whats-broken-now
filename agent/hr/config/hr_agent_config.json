@@ -1,0 +1,43 @@
+{
+    "agent_type": "hr",
+    "role": "HR Manager",
+    "capabilities": {
+        "message_handling": {
+            "enabled": true,
+            "check_interval_minutes": 5,
+            "priority_levels": ["urgent", "normal", "low"],
+            "response_templates": {
+                "urgent": "I understand this is an urgent matter. I will address this immediately.",
+                "normal": "Thank you for your message. I will process this in due course.",
+                "low": "I've received your message and will respond when appropriate."
+            }
+        },
+        "employee_concerns": {
+            "enabled": true,
+            "check_interval_minutes": 60,
+            "monitoring_metrics": [
+                "attendance",
+                "performance",
+                "engagement"
+            ],
+            "thresholds": {
+                "attendance": 0.9,
+                "performance": 0.7,
+                "engagement": 0.8
+            }
+        }
+    },
+    "llm_config": {
+        "model": "mistral-7b-instruct-v0",
+        "temperature": 0.7,
+        "max_tokens": 200,
+        "prompt_templates": {
+            "message_response": "As an HR Manager, respond to the following message from {sender}:\nSubject: {subject}\nContent: {content}\n\nProvide a professional, empathetic, and helpful response that:\n1. Addresses the employee's concerns\n2. Maintains confidentiality and professionalism\n3. Provides clear next steps or guidance\n4. Shows understanding of HR policies and procedures\n\nKeep the response concise and under 200 words.",
+            "proactive_outreach": "As an HR Manager, create a supportive outreach message to {employee_name} about:\n- Checking in on their well-being\n- Offering support and resources\n- Maintaining confidentiality\n- Being professional yet empathetic\n\nKeep the message under 150 words."
+        }
+    },
+    "logging": {
+        "level": "DEBUG",
+        "file": "logs/hr_agent.log"
+    }
+} 
