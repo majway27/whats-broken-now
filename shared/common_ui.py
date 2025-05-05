@@ -3,6 +3,8 @@ from player.repository import PlayerRepository
 from human_resources.repository import EmployeeRepository
 from player.models import Player
 from human_resources.utils import get_current_employee
+import shutil
+from rich.console import Console
 
 def print_common_header():
     """Print the common game header with current status."""
@@ -32,3 +34,6 @@ def print_common_header():
         
     # Print the game header
     print_game_header(active_tickets, mailbox_messages, game_day, player_level, meetings_count, employee_name) 
+    terminal_width = shutil.get_terminal_size().columns
+    console = Console()
+    console.print("─" * terminal_width, style="bold dark_goldenrod")  # Add a styled horizontal rule 

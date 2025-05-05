@@ -6,7 +6,9 @@ from shared.rich_ui import print_status, print_info, print_error, print_table
 from human_resources.repository import EmployeeRepository
 from human_resources.utils import get_current_employee
 from player.models import Player
+from rich.console import Console
 
+console = Console()
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -62,43 +64,109 @@ def show_ticket_interaction(ticket):
         # Display common header
         print_common_header()
 
+        # Create panels for the ticket title and hardware details
+        from rich.panel import Panel
+        from rich.text import Text
+        from rich import box
+        from rich.table import Table
+        
+        # Create hardware panel
+        hardware_info = f"🔧 [bold dark_goldenrod]Name:[/] [sea_green2]{ticket['hardware']['name']}[/]\n"
+        hardware_info += f"📐 [bold dark_goldenrod]Model:[/] [sea_green2]{ticket['hardware']['model']}[/]\n"
+        hardware_info += f"🏭 [bold dark_goldenrod]Manufacturer:[/] [sea_green2]{ticket['hardware']['manufacturer']}[/]"
+        
+        hardware_panel = Panel(
+            hardware_info,
+            title="💻 Product",
+            style="dark_sea_green",
+            box=box.ROUNDED,
+            expand=True
+        )
+
+        # Create title panel
+        title_panel = Panel(
+            Text(ticket['title'], style="sea_green2"),
+            title="🎫 Summary",
+            style="dark_sea_green",
+            box=box.ROUNDED,
+            expand=True
+        )
+
         # Get current assignee
         assignee = models.get_ticket_assignee(ticket['id'])
         current_employee = get_current_employee()
 
-        # Display ticket information
-        ticket_info = f"Title: {ticket['title']}\n"
-        ticket_info += f"Status: {ticket['status']}\n"
+        # Create status panel
+        status_info = f"📊 [bold dark_goldenrod]Status:[/] [sea_green2]{ticket['status']}[/]\n"
         if assignee:
-            ticket_info += f"Assigned to: {assignee['first_name']} {assignee['last_name']} ({assignee['email']})\n"
+            status_info += f"👤 [bold dark_goldenrod]Assigned to:[/] [sea_green2]{assignee['first_name']} {assignee['last_name']} ({assignee['email']})[/]\n"
         else:
-            ticket_info += "Assigned to: Unassigned\n"
-        ticket_info += f"\nHardware Details:\n"
-        ticket_info += f"  Name: {ticket['hardware']['name']}\n"
-        ticket_info += f"  Model: {ticket['hardware']['model']}\n"
-        ticket_info += f"  Manufacturer: {ticket['hardware']['manufacturer']}\n\n"
-        ticket_info += f"Reporter Comment:\n{ticket['description']}"
+            status_info += "👤 [bold dark_goldenrod]Assigned to:[/] [sea_green2]Unassigned[/]\n"
         
-        print_info(f"Working on Ticket: {ticket['id']}", ticket_info)
+        status_panel = Panel(
+            status_info,
+            title="📋 State",
+            style="dark_sea_green",
+            box=box.ROUNDED,
+            expand=True
+        )
+
+        # Create a table to hold the panels
+        table = Table.grid(expand=True)
+        table.add_column(ratio=33)  # Hardware panel
+        table.add_column(ratio=33)  # Title panel
+        table.add_column(ratio=33)  # Status panel
+        table.add_row(hardware_panel, title_panel, status_panel)
+        console.print(table)
+        console.print()  # Add spacing
+
+        # Create a panel for the reporter comment
+        comment_panel = Panel(
+            Text(ticket['description'], style="sea_green2"),
+            title="💬 Reporter Description",
+            style="dark_sea_green",
+            box=box.ROUNDED,
+            expand=True
+        )
+        console.print(comment_panel)
+        console.print()  # Add spacing
         
-        # Display recent history
+        # Display recent history with enhanced styling
         history = models.get_ticket_history(ticket['id'])
         if not history:
-            print_info("Recent History", "No history found for this ticket.")
+            history_panel = Panel(
+                Text("No history found for this ticket.", style="sea_green2"),
+                title="📜 Recent History",
+                style="dark_sea_green",
+                box=box.ROUNDED,
+                expand=True
+            )
+            console.print(history_panel)
         else:
-            headers = ["Time", "Status", "Assignee", "Comment"]
-            rows = []
-            for entry in history[:2]:  # Get only the two most recent entries
+            from rich.table import Table
+            history_table = Table(
+                title="📜 Recent Activity (Last Two Entries)",
+                box=box.ROUNDED,
+                expand=True,
+                style="dark_sea_green"
+            )
+            history_table.add_column("Time", style="bold dark_goldenrod")
+            history_table.add_column("Status", style="bold dark_goldenrod")
+            history_table.add_column("Assignee", style="bold dark_goldenrod")
+            history_table.add_column("Comment", style="bold dark_goldenrod")
+            
+            for entry in history[:2]:
                 comment = entry['comment'] if entry['comment'] else "Status changed"
                 assignee_name = entry.get('assignee_name', 'Unassigned')
-                rows.append([
-                    entry['changed_at'],
-                    entry['status'],
-                    assignee_name,
-                    comment
-                ])
-            print_table("Recent Activity (Last Two Entries)", headers, rows)
+                history_table.add_row(
+                    f"[bold sea_green2]{entry['changed_at']}[/]",
+                    f"[bold sea_green2]{entry['status']}[/]",
+                    f"[bold sea_green2]{assignee_name}[/]",
+                    f"[bold sea_green2]{comment}[/]"
+                )
+            console.print(history_table)
         
+        console.print()  # Add spacing
         
         # Initialize options list
         options = []
