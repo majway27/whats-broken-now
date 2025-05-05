@@ -7,48 +7,76 @@ from . import utils
 # Get the directory where this module is located
 MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(MODULE_DIR, 'tickets.db')
-HR_DB_PATH = os.path.join(MODULE_DIR, '..', 'hr', 'hr.db')
+HR_DB_PATH = os.path.join(MODULE_DIR, '..', 'human_resources', 'hr.db')
 
 def init_db():
     """Initialize the tickets database."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     
-    # Create tickets table with assignee field
+    # Create products table if it doesn't exist
+    c.execute('''CREATE TABLE IF NOT EXISTS products
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT NOT NULL,
+                  model TEXT NOT NULL,
+                  manufacturer TEXT NOT NULL,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    
+    # Create tickets table with product reference if it doesn't exist
     c.execute('''CREATE TABLE IF NOT EXISTS tickets
                  (id TEXT PRIMARY KEY,
                   title TEXT,
                   status TEXT,
                   description TEXT,
-                  hardware_name TEXT,
-                  hardware_model TEXT,
-                  hardware_manufacturer TEXT,
+                  product_id INTEGER,
                   created_at TIMESTAMP,
-                  assignee_id INTEGER)''')
+                  assignee_id INTEGER,
+                  FOREIGN KEY (product_id) REFERENCES products(id))''')
     
-    # Create ticket history table with assignee tracking
+    # Create ticket history table with product reference if it doesn't exist
     c.execute('''CREATE TABLE IF NOT EXISTS ticket_history
                  (audit_id INTEGER PRIMARY KEY AUTOINCREMENT,
                   ticket_id TEXT,
                   title TEXT,
                   status TEXT,
                   description TEXT,
-                  hardware_name TEXT,
-                  hardware_model TEXT,
-                  hardware_manufacturer TEXT,
+                  product_id INTEGER,
                   comment TEXT,
                   changed_at TIMESTAMP,
                   assignee_id INTEGER,
-                  FOREIGN KEY (ticket_id) REFERENCES tickets(id))''')
+                  FOREIGN KEY (ticket_id) REFERENCES tickets(id),
+                  FOREIGN KEY (product_id) REFERENCES products(id))''')
     
     conn.commit()
     conn.close()
+
+def reset_db():
+    """Reset the database by dropping all tables and recreating them."""
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    
+    # Drop existing tables if they exist
+    c.execute("DROP TABLE IF EXISTS ticket_history")
+    c.execute("DROP TABLE IF EXISTS tickets")
+    c.execute("DROP TABLE IF EXISTS products")
+    
+    conn.commit()
+    conn.close()
+    
+    # Reinitialize the database
+    init_db()
 
 def get_active_tickets():
     """Get all active tickets from the database."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer FROM tickets WHERE status != 'Resolved'")
+    c.execute("""
+        SELECT t.id, t.title, t.status, t.description, 
+               p.name, p.model, p.manufacturer 
+        FROM tickets t
+        LEFT JOIN products p ON t.product_id = p.id
+        WHERE t.status != 'Resolved'
+    """)
     tickets = [{
         "id": row[0],
         "title": row[1],
@@ -68,9 +96,11 @@ def get_all_tickets():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        SELECT id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at
-        FROM tickets
-        ORDER BY created_at DESC
+        SELECT t.id, t.title, t.status, t.description, 
+               p.name, p.model, p.manufacturer, t.created_at
+        FROM tickets t
+        LEFT JOIN products p ON t.product_id = p.id
+        ORDER BY t.created_at DESC
     """)
     tickets = c.fetchall()
     conn.close()
@@ -100,11 +130,12 @@ def get_ticket_history(ticket_id):
     c = conn.cursor()
     
     c.execute("""
-        SELECT audit_id, title, status, description, hardware_name, hardware_model, 
-               hardware_manufacturer, comment, changed_at
-        FROM ticket_history
-        WHERE ticket_id = ?
-        ORDER BY changed_at DESC
+        SELECT th.audit_id, th.title, th.status, th.description, 
+               p.name, p.model, p.manufacturer, th.comment, th.changed_at
+        FROM ticket_history th
+        LEFT JOIN products p ON th.product_id = p.id
+        WHERE th.ticket_id = ?
+        ORDER BY th.changed_at DESC
     """, (ticket_id,))
     
     history = []
@@ -124,21 +155,40 @@ def get_ticket_history(ticket_id):
         })
     
     conn.close()
-    return history 
+    return history
 
 def add_ticket(ticket):
     """Add a new ticket to the database."""
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("INSERT INTO tickets (id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-              (ticket['id'],
-               ticket['title'],
-               ticket['status'],
-               ticket['description'],
-               ticket['hardware']['name'],
-               ticket['hardware']['model'],
-               ticket['hardware']['manufacturer'],
-               datetime.now()))
+    
+    # First, ensure the product exists
+    c.execute("""
+        INSERT OR IGNORE INTO products (name, model, manufacturer)
+        VALUES (?, ?, ?)
+    """, (ticket['hardware']['name'], 
+          ticket['hardware']['model'], 
+          ticket['hardware']['manufacturer']))
+    
+    # Get the product ID
+    c.execute("""
+        SELECT id FROM products 
+        WHERE name = ? AND model = ? AND manufacturer = ?
+    """, (ticket['hardware']['name'], 
+          ticket['hardware']['model'], 
+          ticket['hardware']['manufacturer']))
+    product_id = c.fetchone()[0]
+    
+    # Insert the ticket
+    c.execute("""
+        INSERT INTO tickets (id, title, status, description, product_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?)
+    """, (ticket['id'],
+          ticket['title'],
+          ticket['status'],
+          ticket['description'],
+          product_id,
+          datetime.now()))
     conn.commit()
     conn.close()
 
@@ -176,9 +226,9 @@ def record_ticket_history(ticket_id):
     
     # Get current ticket state
     c.execute("""
-        SELECT title, status, description, hardware_name, hardware_model, hardware_manufacturer
-        FROM tickets
-        WHERE id = ?
+        SELECT t.title, t.status, t.description, t.product_id
+        FROM tickets t
+        WHERE t.id = ?
     """, (ticket_id,))
     
     ticket_data = c.fetchone()
@@ -186,8 +236,8 @@ def record_ticket_history(ticket_id):
         # Insert into history table
         c.execute("""
             INSERT INTO ticket_history 
-            (ticket_id, title, status, description, hardware_name, hardware_model, hardware_manufacturer, changed_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (ticket_id, title, status, description, product_id, changed_at)
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (ticket_id, *ticket_data, datetime.now()))
         
     conn.commit()
@@ -263,7 +313,7 @@ def check_new_tickets():
                     conn.close()
                     return new_ticket
         conn.close()
-    return None 
+    return None
 
 def assign_ticket(ticket_id, employee_id):
     """Assign a ticket to an IT specialist."""
@@ -344,7 +394,7 @@ def get_ticket_assignee(ticket_id):
     hr_cursor = hr_conn.cursor()
     
     hr_cursor.execute("""
-        SELECT id, name, email
+        SELECT id, first_name, last_name, email
         FROM employees
         WHERE id = ?
     """, (assignee_id[0],))
@@ -356,8 +406,9 @@ def get_ticket_assignee(ticket_id):
     if assignee:
         return {
             "id": assignee[0],
-            "name": assignee[1],
-            "email": assignee[2]
+            "first_name": assignee[1],
+            "last_name": assignee[2],
+            "email": assignee[3]
         }
     return None
 

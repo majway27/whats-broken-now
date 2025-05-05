@@ -1,0 +1,14 @@
+{
+    "agent_type": "customer",
+    "capabilities": {
+        "ticket_creation": {
+            "enabled": true,
+            "check_interval_minutes": 2,
+            "max_new_tickets": 3
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/customer_agent.log"
+    }
+} 

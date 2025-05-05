@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 from typing import List, Tuple, Optional
 from human_resources.database import get_db_connection as get_hr_db_connection
+from human_resources.utils import get_current_employee
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'calendar.db')
 
@@ -144,9 +145,8 @@ def add_meeting(title: str, description: str, start_time: str, end_time: str, em
         return False
     
     # Validate that all employees are active and not the current player
-    from player.models import Player
-    current_player = Player.get_most_recent()
-    current_employee_id = current_player.employee_id if current_player else None
+    current_employee = get_current_employee()
+    current_employee_id = current_employee.id if current_employee else None
     
     if current_employee_id and current_employee_id in employee_ids:
         return False
@@ -351,11 +351,9 @@ def get_meeting(meeting_id: int) -> Optional[Tuple]:
 
 def get_available_employees() -> List[Tuple]:
     """Get list of all available active employees from HR database, excluding the current player."""
-    from player.models import Player
-    
-    # Get current player's employee ID
-    current_player = Player.get_most_recent()
-    current_employee_id = current_player.employee_id if current_player else None
+    # Get current employee
+    current_employee = get_current_employee()
+    current_employee_id = current_employee.id if current_employee else None
     
     conn = get_hr_db_connection()
     c = conn.cursor()

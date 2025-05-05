@@ -5,6 +5,7 @@ from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
 from shared.rich_ui import print_info, print_error, print_status
 from player.repository import PlayerRepository
+from human_resources.utils import get_current_employee
 import sys
 
 
@@ -56,17 +57,22 @@ def handle_player_quit_job():
     choice = input("\n🌋 Do you REALLY want to quit? (y/N): ").upper()
     if choice == 'Y':
         try:
+            # Get current employee
+            current_employee = get_current_employee()
+            if not current_employee:
+                print_error("Error", "No active employee found.")
+                input("\nPress Enter to continue...")
+                return False
+            
             # Get current player
-            players = PlayerRepository.get_all()
-            if not players:
+            current_player = Player.get_most_recent()
+            if not current_player:
                 print_error("Error", "No active player found.")
                 input("\nPress Enter to continue...")
                 return False
-                
-            current_player = players[0]  # Get the first player (should be the active one)
             
             # Mark employee as inactive in HR system
-            EmployeeRepository.update_employment_status(current_player.employee_id, 'inactive')
+            EmployeeRepository.update_employment_status(current_employee.id, 'inactive')
             # Mark player as inactive in player system
             current_player.mark_as_inactive()
             print_status("Success", "You have been marked as inactive. Goodbye!")

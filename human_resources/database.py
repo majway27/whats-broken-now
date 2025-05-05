@@ -60,7 +60,4 @@ def init_db():
         cursor.execute('ALTER TABLE employees ADD COLUMN employment_status TEXT NOT NULL DEFAULT "active"')
 
     conn.commit()
-    conn.close()
-
-if __name__ == "__main__":
-    init_db() 
+    conn.close() 

@@ -1,5 +1,7 @@
 from . import data
 from .database import get_db_connection
+from player.models import Player
+from .repository import EmployeeRepository
 
 def migrate_employee_directory():
     """Migrate the employee directory data into the database."""
@@ -35,4 +37,14 @@ def migrate_employee_directory():
         ))
     
     conn.commit()
-    conn.close() 
+    conn.close()
+
+def get_current_employee():
+    """
+    Get the current employee record associated with the current player.
+    Returns None if there is no current player or if the player has no associated employee.
+    """
+    current_player = Player.get_most_recent()
+    if not current_player or not current_player.employee_id:
+        return None
+    return EmployeeRepository.get_by_id(current_player.employee_id) 

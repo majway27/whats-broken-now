@@ -4,6 +4,8 @@ from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
 from shared.rich_ui import print_status, print_info, print_error, print_table
 from human_resources.repository import EmployeeRepository
+from human_resources.utils import get_current_employee
+from player.models import Player
 
 
 def clear_screen():
@@ -62,13 +64,13 @@ def show_ticket_interaction(ticket):
 
         # Get current assignee
         assignee = models.get_ticket_assignee(ticket['id'])
-        current_employee = EmployeeRepository.get_current_player()
+        current_employee = get_current_employee()
 
         # Display ticket information
         ticket_info = f"Title: {ticket['title']}\n"
         ticket_info += f"Status: {ticket['status']}\n"
         if assignee:
-            ticket_info += f"Assigned to: {assignee['name']} ({assignee['email']})\n"
+            ticket_info += f"Assigned to: {assignee['first_name']} {assignee['last_name']} ({assignee['email']})\n"
         else:
             ticket_info += "Assigned to: Unassigned\n"
         ticket_info += f"\nHardware Details:\n"
@@ -97,39 +99,42 @@ def show_ticket_interaction(ticket):
                 ])
             print_table("Recent Activity (Last Two Entries)", headers, rows)
         
-        # Display options
-        options = [
-            "1. Update ticket status",
-            "2. Add comment",
-            "3. View full ticket history"
-        ]
+        
+        # Initialize options list
+        options = []
         
         # Add assignment options based on current state
-        if assignee and assignee['id'] == current_employee['id']:
-            options.append("4. Unassign ticket from myself")
+        if assignee and assignee['id'] == current_employee.id:
+            options.append("1. Unassign ticket from myself")
         elif not assignee:
-            options.append("4. Assign ticket to myself")
-            
-        options.append("Q. Return to ticket selection")
+            options.append("1. Assign ticket to myself")
+
+        # Add remaining options
+        options.extend([
+            "2. Update ticket status",
+            "3. Add comment",
+            "4. View full ticket history",
+            "Q. Return to ticket selection"
+        ])
         
         print_menu("Options", options)
 
         choice = input("\nEnter your choice: ")
         
         if choice == '1':
-            update_ticket_status(ticket)
-        elif choice == '2':
-            add_ticket_comment(ticket)
-        elif choice == '3':
-            view_ticket_history(ticket)
-        elif choice == '4':
-            if assignee and assignee['id'] == current_employee['id']:
+            if assignee and assignee['id'] == current_employee.id:
                 models.unassign_ticket(ticket['id'])
                 print_info("Success", "Ticket unassigned successfully.")
             elif not assignee:
-                models.assign_ticket(ticket['id'], current_employee['id'])
+                models.assign_ticket(ticket['id'], current_employee.id)
                 print_info("Success", "Ticket assigned to you successfully.")
             input("Press Enter to continue...")
+        elif choice == '2':
+            add_ticket_comment(ticket)
+        elif choice == '3':
+            update_ticket_status(ticket)
+        elif choice == '4':
+            view_ticket_history(ticket)
         elif choice.upper() == 'Q':
             clear_screen()
             return

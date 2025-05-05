@@ -1,14 +1,20 @@
 import random
 import llm
 import sqlite3
+import os
+
+# Get the directory where this module is located
+MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
+HARDWARE_DB_PATH = os.path.join(MODULE_DIR, '..', 'hardware', 'hardware_catalog.db')
 
 # Initialize LLM client
 client = llm.get_model("mistral-7b-instruct-v0")
 
+# TODO: Migrate this to customer_agent.py
 def generate_reporter_comment(hardware_item):
     """Generate an entertaining reporter comment with a misunderstanding about the hardware."""
     # Get hardware specs from database
-    conn = sqlite3.connect('hardware/hardware_catalog.db')
+    conn = sqlite3.connect(HARDWARE_DB_PATH)
     c = conn.cursor()
     
     c.execute("""
