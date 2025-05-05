@@ -1,11 +1,6 @@
 import random
 import llm
-import sqlite3
-import os
-
-# Get the directory where this module is located
-MODULE_DIR = os.path.dirname(os.path.abspath(__file__))
-HARDWARE_DB_PATH = os.path.join(MODULE_DIR, '..', 'hardware', 'hardware_catalog.db')
+from shared.database import DatabaseConnection
 
 # Initialize LLM client
 client = llm.get_model("mistral-7b-instruct-v0")
@@ -14,18 +9,15 @@ client = llm.get_model("mistral-7b-instruct-v0")
 def generate_reporter_comment(hardware_item):
     """Generate an entertaining reporter comment with a misunderstanding about the hardware."""
     # Get hardware specs from database
-    conn = sqlite3.connect(HARDWARE_DB_PATH)
-    c = conn.cursor()
-    
-    c.execute("""
-        SELECT spec_name, spec_value
-        FROM hardware_specs hs
-        JOIN hardware_items hi ON hs.hardware_id = hi.id
-        WHERE hi.name = ? AND hi.manufacturer = ? AND hi.model = ?
-    """, (hardware_item['name'], hardware_item['manufacturer'], hardware_item['model']))
-    
-    specs = dict(c.fetchall())
-    conn.close()
+    with DatabaseConnection.get_cursor('hardware') as c:
+        c.execute("""
+            SELECT spec_name, spec_value
+            FROM hardware_specs hs
+            JOIN hardware_items hi ON hs.hardware_id = hi.id
+            WHERE hi.name = ? AND hi.manufacturer = ? AND hi.model = ?
+        """, (hardware_item['name'], hardware_item['manufacturer'], hardware_item['model']))
+        
+        specs = dict(c.fetchall())
     
     prompt = f"""Create a short, entertaining report about a malfunctioning {hardware_item['name']} ({hardware_item['model']}).
     The reporter should misunderstand one of the technical specifications or features of the device.

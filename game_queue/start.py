@@ -37,9 +37,7 @@ class QueueManager:
         if self._initialized:
             return
             
-        # Store database in game_queue directory
-        db_path = os.path.join(os.path.dirname(__file__), 'game_events.db')
-        self.queue = GameEventQueue(db_path)
+        self.queue = GameEventQueue()
         self.processor_thread = None
         self.running = False
         self._initialized = True

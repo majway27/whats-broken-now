@@ -1,20 +1,25 @@
 # WBN - "What's Broken Now ?!!" (game)
 
-## Themes
+## Design Goals
 
-- Task trickle of tickets
+### Functional
+
+- Highly entwined Generative AI via LLM
+- Highly oriented to AI agent architecture
+- Who-what-when-where-why dynamic, JIT templating of prompts, rather than library of static, pre considered ones.
+
+### Technology
+
+- Highly portable.  
+  - Little to no external components (ie standalone db server).  
+  - Exception - BYO LLM flexiblity (ex as a player I want to plumb in openAI w/ API key vs stock LLM py lib)
 
 ## Modules
 
 ### Main
-    - Runtime
-    - Start
 
-### Game loop
-    - Roles
-    - Dungeon Master
-    - Dynamic scoring
-    - End conditions
+- Runtime
+- Start
 
 ### Menu
 
@@ -35,42 +40,41 @@
 
 - Overly, this is a functional surface for notifications.
     - Enables async chat with game NPCs (non customer / ticket submitters)
-- story-line nudges
-- Player Quests
-- World Building
 
 ### HR
 
 - Employee handbook
     - Employee handbook is the rules list that AI NPCs are supposed to follow.
 
-### ?Next?
+## Data Architecture
 
-- ?TODO?
-
-## Fun game ideas / Themes
-
-- Mirage of satisfaction via career progression.
-    - Dystopian corporate hellhole like beverance.
-    - Rise in ranks, get bigger headaches when you have to manage down and up.
-- Fork in story path
-    - Struggle to climb the ladder and succeed earnestly.  On the backs of your team..
-        - Protect the company from bad employees and bad customers.
-            - Bad Employees
-                - Adeptly wield the machinations of HR to drum someone out "legally".
-            - Bad Customers
-                - Play the game, machavellian politics to foist bad actors on onto someone else.
-    - Carve a path of destruction as a clandestine, subversive industrial saboteur.  Leave a trail of lost revenue and bodies in your wake..
-        - I just realized that this is the ultimate-boss-mode-screen since it looks like you are furiously hammering away at the CLI like a good little drone!  Just kidding don't play this at work.
-
-## Inspiration
-
-- https://www.chroniclesofgeorge.com/
-- http://bofharchive.com/
-- [Office Space](https://www.imdb.com/title/tt0151804)
-- [Saboteur](https://www.imdb.com/title/tt0035279/)
-- [Lotus Notes](https://www.theregister.com/2024/01/19/remembering_lotus_notes/)
-
-## Reminders
+### Models vs Utils
 
 - The models.py should focus on data structures, while utils.py is better for business logic (ie setup and validation).
+
+### Models vs Repositories
+
+- Separation of Concerns
+  - models.py contains the data structures (like the Player class) that represent your domain objects
+  - repository.py handles all database interactions and data persistence
+- This separation makes the code more maintainable and easier to test
+- Single Responsibility Principle
+  - The Player class in models.py is a simple data container with basic validation
+  - The PlayerRepository class handles all database operations (CRUD)
+  - This makes each class focused on one specific task
+- Dependency Management
+  - The Player model doesn't need to know about database connections or SQL
+  - The repository layer abstracts away all database-specific code
+  - This makes it easier to change the database implementation if needed
+- Testing
+  - You can test the Player model without needing a database
+  - You can mock the repository layer when testing business logic
+  - This separation makes unit testing much easier
+- Code Organization
+  - All database-related code is in one place (repository)
+  - All domain models are in another place (models)
+  - This makes the codebase more organized and easier to navigate
+
+## ?Next?
+
+- ?TODO?

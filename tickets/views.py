@@ -7,7 +7,10 @@ from human_resources.repository import EmployeeRepository
 from human_resources.utils import get_current_employee
 from player.models import Player
 from rich.console import Console
-
+from rich.panel import Panel
+from rich.text import Text
+from rich import box
+from rich.table import Table
 console = Console()
 
 def clear_screen():
@@ -21,22 +24,44 @@ def tickets_management_menu():
         
         # Display common header
         print_common_header()
+                       
+        # Create menu options panel
+        menu_text = "[bold sea_green2]1.[/] Choose a ticket to work on\n"
+        menu_text += "[bold sea_green2]2.[/] View my assigned tickets\n"
+        menu_text += "[bold sea_green2]3.[/] View tickets by status\n"
+        menu_text += "[bold sea_green2]4.[/] View all tickets\n"
+        menu_text += "[bold sea_green2]Q.[/] Return to main menu"
         
-        # Display active tickets at the top
-        print_status_pane()
+        menu_panel = Panel(
+            menu_text,
+            title="🎯 Actions",
+            style="dark_sea_green",
+            box=box.ROUNDED,
+            expand=True
+        )
         
-        menu_options = [
-            "1. Work on active ticket",
-            "2. View all tickets",
-            "Q. Return to main menu"
-        ]
-        print_menu("Tickets Management", menu_options)
-        
-        choice = input("\nEnter your choice (1-3, Q to return to main menu): ")
+        # Create a table to hold the panels
+        table = Table.grid(expand=True)
+        table.add_column(ratio=100)  # Welcome panel
+        table.add_row(menu_panel)
+        table.add_row(print_status_pane())
+        console.print(table)
+        #console.print()  # Add spacing
+                
+        choice = input("\nEnter your choice (1-4, Q to return to main menu): ")
         
         if choice == '1':
             work_new_ticket()
         elif choice == '2':
+            current_employee = get_current_employee()
+            if current_employee:
+                view_assigned_tickets(current_employee.id)
+            else:
+                print_error("Error", "No active employee found.")
+                input("Press Enter to continue...")
+        elif choice == '3':
+            view_tickets_by_status()
+        elif choice == '4':
             view_all_tickets()
         elif choice.upper() == 'Q':
             clear_screen()
@@ -46,15 +71,20 @@ def tickets_management_menu():
             input("Press Enter to continue...")
 
 def print_status_pane():
-    """Print the status pane showing active tickets."""
-    tickets = models.get_active_tickets()
+    """Print the status pane showing unassigned tickets with status information."""
+    tickets = models.get_unassigned_tickets()
     if not tickets:
-        print_status("Active Tickets", "No active tickets")
+        print_status("Unassigned Tickets", "No unassigned tickets")
     else:
+        headers = ["Ticket ID", "Title", "Status"]
         rows = []
         for ticket in tickets:
-            rows.append([f"{ticket['id']}: {ticket['title']} ({ticket['status']})"])
-        print_table("Active Tickets", ["Ticket Details"], rows)
+            rows.append([
+                str(ticket['id']),
+                ticket['title'],
+                ticket['status']
+            ])
+        print_table("Unassigned Tickets", headers, rows)
 
 def show_ticket_interaction(ticket):
     """Show the ticket interaction screen for the selected ticket."""
@@ -198,9 +228,9 @@ def show_ticket_interaction(ticket):
                 print_info("Success", "Ticket assigned to you successfully.")
             input("Press Enter to continue...")
         elif choice == '2':
-            add_ticket_comment(ticket)
-        elif choice == '3':
             update_ticket_status(ticket)
+        elif choice == '3':
+            add_ticket_comment(ticket)
         elif choice == '4':
             view_ticket_history(ticket)
         elif choice.upper() == 'Q':
@@ -264,12 +294,12 @@ def view_all_tickets():
         rows = []
         for ticket in tickets:
             rows.append([
-                str(ticket[0]),
-                ticket[1],
-                ticket[2],
-                f"{ticket[4]} ({ticket[5]}) by {ticket[6]}",
-                ticket[7],
-                ticket[3]
+                str(ticket['id']),
+                ticket['title'],
+                ticket['status'],
+                f"{ticket['hardware']['name']} ({ticket['hardware']['model']}) by {ticket['hardware']['manufacturer']}",
+                ticket['created_at'],
+                ticket['description']
             ])
         print_table("All Tickets", headers, rows)
     
@@ -319,12 +349,10 @@ def add_ticket_comment(ticket):
     
     comment = input("\nEnter your comment: ")
     if comment.strip():
-        if models.add_ticket_comment(ticket, comment):
-            print_info("Success", "Comment added successfully.")
-        else:
-            print_error("Error", "Failed to add comment.")
+        models.add_ticket_comment(ticket, comment)
+        print_info("Success", "Comment added successfully.")
     else:
-        print_error("Error", "Comment cannot be empty.")
+        print_error("Comment cannot be empty.")
     
     input("Press Enter to continue...")
 
@@ -360,3 +388,39 @@ def update_ticket_status(ticket):
             return
         else:
             print_error("Invalid choice. Please try again.")
+
+def view_assigned_tickets(employee_id):
+    """View tickets assigned to the current employee."""
+    clear_screen()
+    
+    tickets = models.get_assigned_tickets(employee_id)
+    if not tickets:
+        print_info("Assigned Tickets", "No tickets assigned to you.")
+    else:
+        headers = ["ID", "Title", "Status", "Hardware", "Created"]
+        rows = []
+        for ticket in tickets:
+            rows.append([
+                str(ticket['id']),
+                ticket['title'],
+                ticket['status'],
+                f"{ticket['hardware']['name']} ({ticket['hardware']['model']})",
+                ticket['created_at']
+            ])
+        print_table("Your Assigned Tickets", headers, rows)
+    
+    input("\nPress Enter to continue...")
+
+def view_tickets_by_status():
+    """View tickets grouped by their status."""
+    clear_screen()
+    
+    status_counts = models.get_tickets_by_status()
+    if not status_counts:
+        print_info("Ticket Status", "No tickets found in the system.")
+    else:
+        headers = ["Status", "Count"]
+        rows = [[status, str(count)] for status, count in status_counts.items()]
+        print_table("Tickets by Status", headers, rows)
+    
+    input("\nPress Enter to continue...")

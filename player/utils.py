@@ -2,20 +2,19 @@ from .models import Player
 from .views import handle_first_time_setup
 from human_resources.repository import EmployeeRepository
 from game_calendar.models import get_current_game_day
+from .repository import PlayerRepository
 
 def validate_player_setup() -> bool:
     """
     Validates the current player setup and handles first-time setup if needed.
     Returns True if setup is valid or first-time setup was successful, False otherwise.
     """
-    from .repository import PlayerRepository
-    
     players = PlayerRepository.get_all()
     if not players:
         return handle_first_time_setup()
         
     # Get current player info
-    current_player = Player.get_most_recent()
+    current_player = PlayerRepository.get_most_recent()
     if current_player and current_player.employee_id:
         employee = EmployeeRepository.get_by_id(current_player.employee_id)
         if not employee or employee.employment_status != 'active':
@@ -33,7 +32,7 @@ def validate_current_player() -> tuple[bool, Player | None]:
     Validates that there is a current player with an associated employee record.
     Returns a tuple of (is_valid, current_player).
     """
-    current_player = Player.get_most_recent()
+    current_player = PlayerRepository.get_most_recent()
     if not current_player:
         return False, None
     if not current_player.employee_id:

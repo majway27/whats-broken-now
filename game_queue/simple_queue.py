@@ -1,41 +1,39 @@
-import sqlite3
 import json
 import time
 import threading
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional, List
+from shared.database import DatabaseConnection
 
 logger = logging.getLogger(__name__)
 
 class GameEventQueue:
-    def __init__(self, db_path: str = "game_events.db"):
+    def __init__(self):
         """Initialize the game event queue with SQLite backend."""
-        self.db_path = db_path
         self._init_db()
         self._lock = threading.Lock()
         
     def _init_db(self):
         """Initialize the SQLite database with required tables."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS game_events (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    event_type TEXT NOT NULL,
-                    priority INTEGER DEFAULT 0,
-                    data TEXT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    processed_at TIMESTAMP,
-                    status TEXT DEFAULT 'pending'
-                )
-            """)
-            conn.commit()
+        schema_sql = """
+            CREATE TABLE IF NOT EXISTS game_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                event_type TEXT NOT NULL,
+                priority INTEGER DEFAULT 0,
+                data TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                processed_at TIMESTAMP,
+                status TEXT DEFAULT 'pending'
+            )
+        """
+        DatabaseConnection.init_db('game_state', schema_sql)
 
     def add_event(self, event_type: str, data: Dict[str, Any], priority: int = 0) -> int:
         """Add a new game event to the queue."""
         with self._lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute(
+            with DatabaseConnection.get_cursor('game_state') as cursor:
+                cursor.execute(
                     "INSERT INTO game_events (event_type, priority, data) VALUES (?, ?, ?)",
                     (event_type, priority, json.dumps(data))
                 )
@@ -44,8 +42,8 @@ class GameEventQueue:
     def get_next_event(self) -> Optional[Dict[str, Any]]:
         """Get the next event to process, prioritizing by priority and creation time."""
         with self._lock:
-            with sqlite3.connect(self.db_path) as conn:
-                cursor = conn.execute("""
+            with DatabaseConnection.get_cursor('game_state') as cursor:
+                cursor.execute("""
                     SELECT id, event_type, data, created_at 
                     FROM game_events 
                     WHERE status = 'pending'
@@ -66,17 +64,17 @@ class GameEventQueue:
     def mark_event_processed(self, event_id: int, success: bool = True):
         """Mark an event as processed."""
         with self._lock:
-            with sqlite3.connect(self.db_path) as conn:
+            with DatabaseConnection.get_cursor('game_state') as cursor:
                 status = 'completed' if success else 'failed'
-                conn.execute(
+                cursor.execute(
                     "UPDATE game_events SET status = ?, processed_at = CURRENT_TIMESTAMP WHERE id = ?",
                     (status, event_id)
                 )
 
     def get_pending_events(self) -> List[Dict[str, Any]]:
         """Get all pending events."""
-        with sqlite3.connect(self.db_path) as conn:
-            cursor = conn.execute("""
+        with DatabaseConnection.get_cursor('game_state') as cursor:
+            cursor.execute("""
                 SELECT id, event_type, priority, data, created_at 
                 FROM game_events 
                 WHERE status = 'pending'
@@ -92,8 +90,8 @@ class GameEventQueue:
 
     def cleanup_old_events(self, days: int = 30):
         """Clean up events older than specified days."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
+        with DatabaseConnection.get_cursor('game_state') as cursor:
+            cursor.execute(
                 "DELETE FROM game_events WHERE created_at < datetime('now', ?)",
                 (f'-{days} days',)
             ) 

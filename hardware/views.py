@@ -1,6 +1,7 @@
 from . import models
 from shared import views as shared_views
 from shared.rich_ui import print_info, print_error, print_table, clear_screen, print_menu
+from shared.database import DatabaseConnection
 
 def clear_screen():
     """Clear the terminal screen."""
@@ -172,29 +173,26 @@ def view_all_hardware():
     clear_screen()
     print("\n=== All Hardware Items ===")
     
-    conn = models.get_hardware_db()
-    c = conn.cursor()
+    with DatabaseConnection.get_cursor('hardware') as cursor:
+        cursor.execute("""
+            SELECT hi.id, hi.name, hi.manufacturer, hi.model, hc.name as category
+            FROM hardware_items hi
+            JOIN hardware_categories hc ON hi.category_id = hc.id
+            ORDER BY hi.name
+        """)
+        
+        items = cursor.fetchall()
+        if not items:
+            print("\nNo hardware items found in the catalog.")
+        else:
+            for item in items:
+                print(f"\nID: {item[0]}")
+                print(f"Name: {item[1]}")
+                print(f"Manufacturer: {item[2]}")
+                print(f"Model: {item[3]}")
+                print(f"Category: {item[4]}")
+                print("-" * 30)
     
-    c.execute("""
-        SELECT hi.id, hi.name, hi.manufacturer, hi.model, hc.name as category
-        FROM hardware_items hi
-        JOIN hardware_categories hc ON hi.category_id = hc.id
-        ORDER BY hi.name
-    """)
-    
-    items = c.fetchall()
-    if not items:
-        print("\nNo hardware items found in the catalog.")
-    else:
-        for item in items:
-            print(f"\nID: {item[0]}")
-            print(f"Name: {item[1]}")
-            print(f"Manufacturer: {item[2]}")
-            print(f"Model: {item[3]}")
-            print(f"Category: {item[4]}")
-            print("-" * 30)
-    
-    conn.close()
     input("\nPress Enter to continue...") 
 
 def add_hardware_item():
@@ -202,11 +200,9 @@ def add_hardware_item():
     clear_screen()
     
     # Get hardware categories
-    conn = models.get_hardware_db()
-    c = conn.cursor()
-    c.execute("SELECT id, name FROM hardware_categories")
-    categories = c.fetchall()
-    conn.close()
+    with DatabaseConnection.get_cursor('hardware') as cursor:
+        cursor.execute("SELECT id, name FROM hardware_categories")
+        categories = cursor.fetchall()
     
     if not categories:
         print_error("No categories found. Please create categories first.")
@@ -241,50 +237,39 @@ def update_hardware_item():
     clear_screen()
     
     # Get all hardware items
-    conn = models.get_hardware_db()
-    c = conn.cursor()
-    c.execute("""
-        SELECT id, name, manufacturer, model
-        FROM hardware_items
-        ORDER BY name
-    """)
-    items = c.fetchall()
-    conn.close()
+    with DatabaseConnection.get_cursor('hardware') as cursor:
+        cursor.execute("""
+            SELECT id, name, manufacturer, model
+            FROM hardware_items
+            ORDER BY name
+        """)
+        items = cursor.fetchall()
     
     if not items:
         print_error("No hardware items found in the catalog.")
         input("Press Enter to continue...")
-        return
+        return False
     
-    # Display hardware items
-    item_rows = [[str(item[0]), f"{item[1]} ({item[2]} {item[3]})"] for item in items]
-    print_table("Available Hardware Items", ["ID", "Details"], item_rows)
+    # Display items
+    item_rows = [[str(item_id), name, manufacturer, model] for item_id, name, manufacturer, model in items]
+    print_table("Available Hardware Items", ["ID", "Name", "Manufacturer", "Model"], item_rows)
     
     try:
         item_id = int(input("\nSelect item ID to update: "))
+        name = input("Enter new name (leave blank to keep current): ")
+        manufacturer = input("Enter new manufacturer (leave blank to keep current): ")
+        model = input("Enter new model (leave blank to keep current): ")
         
-        # Get new values
-        name = input("Enter new name (press Enter to keep current): ")
-        manufacturer = input("Enter new manufacturer (press Enter to keep current): ")
-        model = input("Enter new model (press Enter to keep current): ")
-        
-        # Update the hardware item
-        success, error = models.update_hardware_item(
-            item_id,
-            name if name else None,
-            manufacturer if manufacturer else None,
-            model if model else None
-        )
+        success, error = models.update_hardware_item(item_id, name or None, manufacturer or None, model or None)
         
         if success:
-            if error == "No changes made":
-                print_info("Update", "No changes made.")
-            else:
-                print_info("Success", "Hardware item updated successfully!")
+            print_info("Success", "Hardware item updated successfully!")
         else:
             print_error(f"Error updating hardware item: {error}")
+        return success
     except ValueError:
         print_error("Invalid item ID. Please enter a number.")
+        return False
     finally:
         input("Press Enter to continue...")
 

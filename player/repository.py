@@ -1,131 +1,106 @@
-import sqlite3
-import os
-from datetime import datetime
 from typing import Optional, List
 from .models import Player
+from shared.database import DatabaseConnection
+from human_resources.repository import EmployeeRepository
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'player.db')
-
-def get_db_connection():
-    """Create a database connection and return it."""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+# Schema for player database
+PLAYER_SCHEMA = '''
+    CREATE TABLE IF NOT EXISTS players (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        employee_id INTEGER,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        days_survived INTEGER DEFAULT 0,
+        FOREIGN KEY (employee_id) REFERENCES employees (id)
+    )
+'''
 
 def init_db():
     """Initialize the player database."""
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    # Create players table
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS players (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT NOT NULL,
-            last_name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            employee_id INTEGER,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            days_survived INTEGER DEFAULT 0,
-            FOREIGN KEY (employee_id) REFERENCES employees (id)
-        )
-    ''')
-    
-    # Check if days_survived column exists, if not add it
-    cursor.execute("PRAGMA table_info(players)")
-    columns = [column[1] for column in cursor.fetchall()]
-    if 'days_survived' not in columns:
-        cursor.execute('ALTER TABLE players ADD COLUMN days_survived INTEGER DEFAULT 0')
-    
-    conn.commit()
-    conn.close()
+    DatabaseConnection.init_db('player', PLAYER_SCHEMA)
 
 class PlayerRepository:
     @staticmethod
     def create(first_name: str, last_name: str, email: str, employee_id: Optional[int] = None) -> Player:
         """Create a new player record."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'INSERT INTO players (first_name, last_name, email, employee_id) VALUES (?, ?, ?, ?)',
-            (first_name, last_name, email, employee_id)
-        )
-        player_id = cursor.lastrowid
-        conn.commit()
-        conn.close()
-        return Player(
-            id=player_id,
-            first_name=first_name,
-            last_name=last_name,
-            email=email,
-            employee_id=employee_id,
-            created_at=None
-        )
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute(
+                'INSERT INTO players (first_name, last_name, email, employee_id) VALUES (?, ?, ?, ?)',
+                (first_name, last_name, email, employee_id)
+            )
+            player_id = cursor.lastrowid
+            return Player(
+                id=player_id,
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                employee_id=employee_id,
+                created_at=None
+            )
 
     @staticmethod
     def get_by_id(player_id: int) -> Optional[Player]:
         """Get a player by their ID."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM players WHERE id = ?', (player_id,))
-        row = cursor.fetchone()
-        conn.close()
-        return Player.from_db_row(row) if row else None
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute('SELECT * FROM players WHERE id = ?', (player_id,))
+            row = cursor.fetchone()
+            return Player.from_db_row(row) if row else None
 
     @staticmethod
     def get_by_email(email: str) -> Optional[Player]:
         """Get a player by their email."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM players WHERE email = ?', (email,))
-        row = cursor.fetchone()
-        conn.close()
-        return Player.from_db_row(row) if row else None
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute('SELECT * FROM players WHERE email = ?', (email,))
+            row = cursor.fetchone()
+            return Player.from_db_row(row) if row else None
 
     @staticmethod
     def get_all() -> List[Player]:
         """Get all player records."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT * FROM players ORDER BY created_at DESC')
-        players = [Player.from_db_row(row) for row in cursor.fetchall()]
-        conn.close()
-        return players
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute('SELECT * FROM players ORDER BY created_at DESC')
+            return [Player.from_db_row(row) for row in cursor.fetchall()]
 
     @staticmethod
     def exists() -> bool:
         """Check if any player records exist."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT COUNT(*) FROM players')
-        count = cursor.fetchone()[0]
-        conn.close()
-        return count > 0
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute('SELECT COUNT(*) FROM players')
+            return cursor.fetchone()[0] > 0
 
     @staticmethod
     def update_employee_id(player_id: int, employee_id: int) -> bool:
         """Update a player's employee ID reference."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'UPDATE players SET employee_id = ? WHERE id = ?',
-            (employee_id, player_id)
-        )
-        success = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-        return success
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute(
+                'UPDATE players SET employee_id = ? WHERE id = ?',
+                (employee_id, player_id)
+            )
+            return cursor.rowcount > 0
 
     @staticmethod
     def update_days_survived(player_id: int, days: int) -> bool:
         """Update a player's days survived count."""
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            'UPDATE players SET days_survived = ? WHERE id = ?',
-            (days, player_id)
-        )
-        success = cursor.rowcount > 0
-        conn.commit()
-        conn.close()
-        return success 
+        with DatabaseConnection.get_cursor('player') as cursor:
+            cursor.execute(
+                'UPDATE players SET days_survived = ? WHERE id = ?',
+                (days, player_id)
+            )
+            return cursor.rowcount > 0
+
+    @staticmethod
+    def get_employee_name(player_id: int) -> str:
+        """Returns the full name of the employee associated with this player."""
+        player = PlayerRepository.get_by_id(player_id)
+        if not player or not player.employee_id:
+            return ""
+        employee = EmployeeRepository.get_by_id(player.employee_id)
+        return f"{employee.first_name} {employee.last_name}" if employee else ""
+
+    @staticmethod
+    def get_most_recent() -> Optional[Player]:
+        """Returns the most recent player from the repository."""
+        players = PlayerRepository.get_all()
+        return players[0] if players else None 

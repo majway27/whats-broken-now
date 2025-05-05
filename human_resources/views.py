@@ -4,9 +4,14 @@ from . import RoleRepository, EmployeeRepository, PerformanceRatingRepository
 from shared.views import print_menu, clear_screen
 from shared.common_ui import print_common_header
 from shared.rich_ui import print_info, print_error, print_status
+from rich.panel import Panel
+from rich.table import Table
+from rich import box
+from rich.console import Console
 from player.repository import PlayerRepository
 from human_resources.utils import get_current_employee
 import sys
+console = Console()
 
 
 def show_hr_menu():
@@ -15,6 +20,26 @@ def show_hr_menu():
         clear_screen()
         print_common_header()
         
+        # Create welcome panel
+        current_employee = get_current_employee()
+        welcome_text = f"👋 Welcome, [bold sea_green2]{current_employee.first_name} {current_employee.last_name}[/]\n"
+        welcome_text += f"📧 [bold dark_goldenrod]Email:[/] [sea_green2]{current_employee.email}[/]"
+        
+        welcome_panel = Panel(
+            welcome_text,
+            title="👤 Employee Info",
+            style="dark_sea_green",
+            box=box.ROUNDED,
+            expand=True
+        )
+
+        # Create a table to hold the panels# Create a table to hold the panels
+        table = Table.grid(expand=True)
+        table.add_column(ratio=100)
+        table.add_row(welcome_panel)
+        console.print(table)
+        console.print()  # Add spacing
+
         menu_options = [
             "1. Employee Management",
             "2. Role Management",
@@ -65,7 +90,7 @@ def handle_player_quit_job():
                 return False
             
             # Get current player
-            current_player = Player.get_most_recent()
+            current_player = PlayerRepository.get_most_recent()
             if not current_player:
                 print_error("Error", "No active player found.")
                 input("\nPress Enter to continue...")
@@ -74,7 +99,7 @@ def handle_player_quit_job():
             # Mark employee as inactive in HR system
             EmployeeRepository.update_employment_status(current_employee.id, 'inactive')
             # Mark player as inactive in player system
-            current_player.mark_as_inactive()
+            PlayerRepository.update_employee_id(current_player.id, None)
             print_status("Success", "You have been marked as inactive. Goodbye!")
             print_info("Exiting", "Thank you for playing Whats Broken Now!")
             input("\nPress Enter to exit...")
@@ -511,4 +536,9 @@ def deactivate_all_employees():
         print(f"\nError during layoff: {str(e)}")
     
     input("\nPress Enter to continue...")
-    clear_screen() 
+    clear_screen()
+
+def show_employee_directory():
+    """Show the employee directory."""
+    current_player = PlayerRepository.get_most_recent()
+    # ... existing code ... 
