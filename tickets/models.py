@@ -27,11 +27,18 @@ def init_db():
                  (id TEXT PRIMARY KEY,
                   title TEXT,
                   status TEXT,
-                  description TEXT,
                   product_id INTEGER,
                   created_at TIMESTAMP,
                   assignee_id INTEGER,
                   FOREIGN KEY (product_id) REFERENCES products(id))''')
+    
+    # Create ticket description table
+    c.execute('''CREATE TABLE IF NOT EXISTS ticket_description
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  ticket_id TEXT NOT NULL,
+                  description TEXT NOT NULL,
+                  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                  FOREIGN KEY (ticket_id) REFERENCES tickets(id))''')
     
     # Create ticket history table with product reference if it doesn't exist
     c.execute('''CREATE TABLE IF NOT EXISTS ticket_history
@@ -71,10 +78,11 @@ def get_active_tickets():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        SELECT t.id, t.title, t.status, t.description, 
+        SELECT t.id, t.title, t.status, td.description, 
                p.name, p.model, p.manufacturer 
         FROM tickets t
         LEFT JOIN products p ON t.product_id = p.id
+        LEFT JOIN ticket_description td ON t.id = td.ticket_id
         WHERE t.status != 'Resolved'
     """)
     tickets = [{
@@ -96,10 +104,11 @@ def get_all_tickets():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute("""
-        SELECT t.id, t.title, t.status, t.description, 
+        SELECT t.id, t.title, t.status, td.description, 
                p.name, p.model, p.manufacturer, t.created_at
         FROM tickets t
         LEFT JOIN products p ON t.product_id = p.id
+        LEFT JOIN ticket_description td ON t.id = td.ticket_id
         ORDER BY t.created_at DESC
     """)
     tickets = c.fetchall()
@@ -181,14 +190,20 @@ def add_ticket(ticket):
     
     # Insert the ticket
     c.execute("""
-        INSERT INTO tickets (id, title, status, description, product_id, created_at)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO tickets (id, title, status, product_id, created_at)
+        VALUES (?, ?, ?, ?, ?)
     """, (ticket['id'],
           ticket['title'],
           ticket['status'],
-          ticket['description'],
           product_id,
           datetime.now()))
+    
+    # Insert the description
+    c.execute("""
+        INSERT INTO ticket_description (ticket_id, description)
+        VALUES (?, ?)
+    """, (ticket['id'], ticket['description']))
+    
     conn.commit()
     conn.close()
 
@@ -226,8 +241,9 @@ def record_ticket_history(ticket_id):
     
     # Get current ticket state
     c.execute("""
-        SELECT t.title, t.status, t.description, t.product_id
+        SELECT t.title, t.status, td.description, t.product_id
         FROM tickets t
+        LEFT JOIN ticket_description td ON t.id = td.ticket_id
         WHERE t.id = ?
     """, (ticket_id,))
     
