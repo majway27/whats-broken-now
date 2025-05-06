@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from tickets import models as ticket_models
+from hardware import utils as hardware_utils
 
 # Get logger for this module
 logger = logging.getLogger(__name__)
@@ -120,13 +121,27 @@ class CustomerAgent:
                     break
 
                 if self._should_create_ticket(customer):
-                    new_ticket = ticket_models.check_new_tickets()
-                    if new_ticket:
-                        self.logger.info(f"Created new ticket for customer {customer.name}: {new_ticket['id']}")
-                        customer.last_ticket_time = datetime.now()
-                        new_tickets_count += 1
-                    else:
-                        self.logger.warning(f"Failed to create ticket for customer {customer.name}")
+                    # Get a random hardware item for the ticket
+                    hardware_item = hardware_utils.get_random_hardware_item()
+                    
+                    # Create a new ticket
+                    new_ticket = {
+                        'id': f"TICKET-{ticket_models.get_ticket_count() + 1}",
+                        'title': f"Support request from {customer.name}",
+                        'status': 'New',
+                        'description': f"Customer {customer.name} has reported an issue with their {hardware_item['name']}. {hardware_item['failure']}",
+                        'hardware': {
+                            'name': hardware_item['name'],
+                            'model': hardware_item['model'],
+                            'manufacturer': hardware_item['manufacturer']
+                        }
+                    }
+                    
+                    # Add the ticket to the database
+                    ticket_models.add_ticket(new_ticket)
+                    self.logger.info(f"Created new ticket for customer {customer.name}: {new_ticket['id']}")
+                    customer.last_ticket_time = datetime.now()
+                    new_tickets_count += 1
 
         except Exception as e:
             self.logger.error(f"Error in check_and_create_tickets: {e}")

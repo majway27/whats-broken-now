@@ -305,20 +305,6 @@ def view_all_tickets():
     
     input("\nPress Enter to continue...")
 
-def check_new_tickets():
-    """Check for new tickets and display the result."""
-    clear_screen()
-    
-    new_ticket = models.check_new_tickets()
-    
-    if new_ticket:
-        print_info("New Ticket Found", f"New ticket found: {new_ticket['id']}")
-    else:
-        print_info("No New Tickets", "No new tickets found.")
-    
-    input("Press Enter to continue...")
-    clear_screen()
-
 def view_ticket_history(ticket):
     """Display the history of a ticket including status changes and comments."""
     clear_screen()
