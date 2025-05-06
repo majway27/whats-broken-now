@@ -2,8 +2,10 @@ import unittest
 import os
 import tempfile
 from datetime import datetime, date
-from tickets import models
-from tickets import views
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from tickets.models import *
+from tickets.views import *
 from shared.database import DatabaseConnection
 from human_resources.repository import EmployeeRepository
 from human_resources.database import init_db as init_hr_db
@@ -188,7 +190,7 @@ class TestTickets(unittest.TestCase):
         models.add_ticket(ticket)
 
         # Update status
-        models.update_ticket_status('TEST-001', 'In Progress')
+        models.mutate_ticket_status('TEST-001', 'In Progress')
 
         # Verify status update
         tickets = models.get_all_tickets()
@@ -211,9 +213,9 @@ class TestTickets(unittest.TestCase):
         models.add_ticket(ticket)
 
         # Make some changes
-        models.update_ticket_status('TEST-001', 'In Progress')
+        models.mutate_ticket_status('TEST-001', 'In Progress')
         models.assign_ticket('TEST-001', self.test_employee.id)
-        models.add_ticket_comment(ticket, 'Test comment')
+        models.append_ticket_comment(ticket, 'Test comment')
 
         # Verify history
         history = models.get_ticket_history('TEST-001')

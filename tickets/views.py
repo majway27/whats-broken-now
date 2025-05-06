@@ -335,7 +335,7 @@ def add_ticket_comment(ticket):
     
     comment = input("\nEnter your comment: ")
     if comment.strip():
-        models.add_ticket_comment(ticket, comment)
+        models.append_ticket_comment(ticket, comment)
         print_info("Success", "Comment added successfully.")
     else:
         print_error("Comment cannot be empty.")
@@ -367,7 +367,7 @@ def update_ticket_status(ticket):
             return
         elif choice in status_map:
             new_status = status_map[choice]
-            models.update_ticket_status(ticket['id'], new_status)
+            models.mutate_ticket_status(ticket['id'], new_status)
             ticket['status'] = new_status
             print_info("Status Updated", f"Ticket status updated to: {new_status}")
             input("Press Enter to continue...")

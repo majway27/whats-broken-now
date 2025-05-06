@@ -1,3 +1,4 @@
 llm
 llm-gpt4all
 rich
+pytest

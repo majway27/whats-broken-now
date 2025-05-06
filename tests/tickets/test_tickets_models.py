@@ -1,27 +1,59 @@
 import unittest
-from datetime import datetime
-from . import models
-from . import views
+import os
+import tempfile
+from datetime import datetime, date
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from tickets.models import *
+from tickets.views import *
 from shared.database import DatabaseConnection
 from human_resources.repository import EmployeeRepository
+from human_resources.database import init_db as init_hr_db
 
 class TestTickets(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up test database before running tests."""
+        # Create temporary test database files
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_db_paths = {
+            'tickets': os.path.join(cls.test_dir, 'test_tickets.db'),
+            'hr': os.path.join(cls.test_dir, 'test_hr.db')
+        }
+        
+        # Set test database paths
+        DatabaseConnection.set_test_db_paths(cls.test_db_paths)
+        
+        # Initialize test databases
         models.reset_db()
+        init_hr_db()
+        
         # Create test employee
         cls.employee_repo = EmployeeRepository()
-        cls.test_employee = cls.employee_repo.add_employee(
+        cls.test_employee = cls.employee_repo.create(
             first_name="Test",
             last_name="User",
             email="test@example.com",
-            role="Technician"
+            hire_date=date.today(),
+            role_id=None,
+            employment_status="active"
         )
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test databases after all tests."""
+        # Clear test database paths
+        DatabaseConnection.clear_test_db_paths()
+        
+        # Remove test directory and its contents
+        for file in os.listdir(cls.test_dir):
+            os.remove(os.path.join(cls.test_dir, file))
+        os.rmdir(cls.test_dir)
 
     def setUp(self):
         """Set up test data before each test."""
         models.reset_db()
+        init_hr_db()
         # Add test product
         with DatabaseConnection.get_cursor('tickets') as c:
             c.execute("""
@@ -141,8 +173,8 @@ class TestTickets(unittest.TestCase):
         assignee = models.get_ticket_assignee('TEST-001')
         self.assertEqual(assignee['id'], self.test_employee.id)
 
-    def test_update_ticket_status(self):
-        """Test updating ticket status."""
+    def test_mutate_ticket_status(self):
+        """Test mutating (updating) ticket status."""
         # Add test ticket
         ticket = {
             'id': 'TEST-001',
@@ -158,7 +190,7 @@ class TestTickets(unittest.TestCase):
         models.add_ticket(ticket)
 
         # Update status
-        models.update_ticket_status('TEST-001', 'In Progress')
+        models.mutate_ticket_status('TEST-001', 'In Progress')
 
         # Verify status update
         tickets = models.get_all_tickets()
@@ -181,9 +213,9 @@ class TestTickets(unittest.TestCase):
         models.add_ticket(ticket)
 
         # Make some changes
-        models.update_ticket_status('TEST-001', 'In Progress')
+        models.mutate_ticket_status('TEST-001', 'In Progress')
         models.assign_ticket('TEST-001', self.test_employee.id)
-        models.add_ticket_comment(ticket, 'Test comment')
+        models.append_ticket_comment(ticket, 'Test comment')
 
         # Verify history
         history = models.get_ticket_history('TEST-001')

@@ -194,14 +194,32 @@ def get_ticket_history(ticket_id):
             })
         return history
 
-def insert_ticket_history(ticket_id, title, status, description, product_id, comment=None, assignee_id=None):
+def ensure_default_product(cursor):
+    """Ensure there is at least one product in the database."""
+    # Check if we have any products
+    cursor.execute("SELECT id FROM products LIMIT 1")
+    result = cursor.fetchone()
+    if result:
+        return result['id']
+        
+    # Add a default product
+    cursor.execute("""
+        INSERT INTO products (name, model, manufacturer)
+        VALUES (?, ?, ?)
+    """, ("Unknown Product", "Unknown Model", "Unknown Manufacturer"))
+    return cursor.lastrowid
+
+def insert_ticket_history(cursor, ticket_id, title, status, description, product_id, comment=None, assignee_id=None):
     """Insert a record into the ticket history table."""
-    with DatabaseConnection.get_cursor('tickets') as c:
-        c.execute("""
+    try:
+        cursor.execute("""
             INSERT INTO ticket_history 
             (ticket_id, title, status, product_id, comment, changed_at, assignee_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """, (ticket_id, title, status, product_id, comment, datetime.now(), assignee_id))
+    except Exception as e:
+        print(f"Error inserting history: {str(e)}")
+        raise
 
 def add_ticket(ticket):
     """Add a new ticket to the database."""
@@ -239,10 +257,25 @@ def add_ticket(ticket):
             VALUES (?, ?)
         """, (ticket['id'], ticket['description']))
 
-def add_ticket_comment(ticket, comment):
+def list_products():
+    """List all products in the database."""
+    with DatabaseConnection.get_cursor('tickets') as c:
+        c.execute("SELECT id, name, model, manufacturer FROM products")
+        return c.fetchall()
+
+def append_ticket_comment(ticket, comment):
     """Add a comment to a ticket."""
-    if comment.strip():
+    if not comment.strip():
+        return
+        
+    try:
         with DatabaseConnection.get_cursor('tickets') as c:
+            # First verify the ticket exists
+            c.execute("SELECT id FROM tickets WHERE id = ?", (ticket['id'],))
+            if not c.fetchone():
+                print(f"Error: Ticket {ticket['id']} does not exist")
+                return
+
             # Get current ticket state
             c.execute("""
                 SELECT 
@@ -251,21 +284,71 @@ def add_ticket_comment(ticket, comment):
                     td.description as ticket_description,
                     t.product_id as ticket_product_id
                 FROM tickets t
-                LEFT JOIN ticket_description td ON t.id = td.ticket_id
+                INNER JOIN ticket_description td ON t.id = td.ticket_id
                 WHERE t.id = ?
             """, (ticket['id'],))
             row = c.fetchone()
             
-            if row:
-                insert_ticket_history(
-                    ticket['id'],
-                    row['ticket_title'],
-                    row['ticket_status'],
-                    row['ticket_description'],
-                    row['ticket_product_id'],
-                    comment,
-                    ticket.get('assignee_id')
-                )
+            if not row:
+                print(f"Error: No description found for ticket {ticket['id']}")
+                return
+                
+            if row['ticket_product_id'] is None:
+                print(f"Error: No product ID found for ticket {ticket['id']}")
+                return
+                
+            # Verify the product exists
+            c.execute("SELECT id FROM products WHERE id = ?", (row['ticket_product_id'],))
+            if not c.fetchone():
+                print(f"Error: Product ID {row['ticket_product_id']} does not exist")
+                print("\nFixing missing product...")
+                
+                # Ensure we have a default product
+                default_product_id = ensure_default_product(c)
+                if not default_product_id:
+                    print("Error: Failed to create default product")
+                    return
+                
+                # Update the ticket to use the default product
+                c.execute("""
+                    UPDATE tickets 
+                    SET product_id = ? 
+                    WHERE id = ?
+                """, (default_product_id, ticket['id']))
+                
+                print(f"Updated ticket to use default product (ID: {default_product_id})")
+                
+                # Get the updated ticket state
+                c.execute("""
+                    SELECT 
+                        t.title as ticket_title,
+                        t.status as ticket_status,
+                        td.description as ticket_description,
+                        t.product_id as ticket_product_id
+                    FROM tickets t
+                    INNER JOIN ticket_description td ON t.id = td.ticket_id
+                    WHERE t.id = ?
+                """, (ticket['id'],))
+                row = c.fetchone()
+                
+            print(f"Debug: Adding comment to ticket {ticket['id']}")
+            print(f"Debug: Product ID: {row['ticket_product_id']}")
+            
+            # Insert the history record
+            insert_ticket_history(
+                c,
+                ticket['id'],
+                row['ticket_title'],
+                row['ticket_status'],
+                row['ticket_description'],
+                row['ticket_product_id'],
+                comment,
+                ticket.get('assignee_id')
+            )
+            
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
+        raise
 
 def record_ticket_history(ticket_id):
     """Record the current state of a ticket in the history table."""
@@ -282,11 +365,12 @@ def record_ticket_history(ticket_id):
         if row:
             title, status, description, product_id, assignee_id = row
             insert_ticket_history(
+                c,
                 ticket_id, title, status, description,
                 product_id, None, assignee_id
             )
 
-def update_ticket_status(ticket_id, new_status):
+def mutate_ticket_status(ticket_id, new_status):
     """Update the status of a ticket."""
     with DatabaseConnection.get_cursor('tickets') as c:
         # Get current ticket state before update
