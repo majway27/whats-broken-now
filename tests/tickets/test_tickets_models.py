@@ -2,8 +2,6 @@ import unittest
 import os
 import tempfile
 from datetime import datetime, date
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from tickets.models import *
 from tickets.views import *
 from shared.database import DatabaseConnection

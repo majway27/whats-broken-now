@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from tickets import models as ticket_models
+from tickets import utils as ticket_utils
 from hardware import utils as hardware_utils
 
 # Get logger for this module
@@ -124,12 +125,15 @@ class CustomerAgent:
                     # Get a random hardware item for the ticket
                     hardware_item = hardware_utils.get_random_hardware_item()
                     
+                    # Generate reporter comment
+                    reporter_comment = ticket_utils.generate_reporter_comment(hardware_item)
+                    
                     # Create a new ticket
                     new_ticket = {
                         'id': f"TICKET-{ticket_models.get_ticket_count() + 1}",
                         'title': f"Support request from {customer.name}",
                         'status': 'New',
-                        'description': f"Customer {customer.name} has reported an issue with their {hardware_item['name']}. {hardware_item['failure']}",
+                        'description': f"Customer {customer.name} has reported an issue with their {hardware_item['name']}. {hardware_item['failure']}\n\nReporter's comment:\n{reporter_comment}",
                         'hardware': {
                             'name': hardware_item['name'],
                             'model': hardware_item['model'],

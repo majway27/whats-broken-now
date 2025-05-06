@@ -24,7 +24,7 @@ fi
 echo "Running all tests in whats-broken-now..."
 
 # Run the tests with the correct Python path
-PYTHONPATH="${SCRIPT_DIR}" python3 -m pytest tests/tickets -v
+PYTHONPATH="${SCRIPT_DIR}" python3 -m pytest tests/ -v
 
 # Store the test result
 TEST_RESULT=$?

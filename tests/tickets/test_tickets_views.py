@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
 import os
-import sys
 from tickets.views import (
     work_new_ticket,
     view_all_tickets,

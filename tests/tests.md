@@ -3,7 +3,7 @@
 - Run tests from the whats-broken-now directory.
   - `run_tests.sh`
 
-## Tickets
+## Direct Test Tickets
 
 - Using Python's unittest discovery (recommended)
   - `PYTHONPATH=. python -m unittest discover tests/tickets -v`
